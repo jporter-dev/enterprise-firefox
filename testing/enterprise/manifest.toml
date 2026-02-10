@@ -80,6 +80,8 @@ run-if = [
   "buildapp == 'browser'",
 ]
 
+["test_felt_browser_os_session.py"]
+
 ["test_felt_browser_shutdown_crash_exit.py"]
 run-if = [
   "buildapp == 'browser'", # open new tab
