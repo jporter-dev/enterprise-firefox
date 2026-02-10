@@ -13,6 +13,7 @@
 // clang-format on
 
 #include "InputDeviceUtils.h"
+#include "nsIWidget.h"
 #include "ScreenHelperWin.h"
 #include "WinWindowOcclusionTracker.h"
 #include "WindowsUIUtils.h"
@@ -24,7 +25,9 @@
 #include "mozilla/LookAndFeel.h"
 #include "mozilla/WindowsVersion.h"
 #include "nsLookAndFeel.h"
+#include "nsIObserverService.h"
 #include "nsStringFwd.h"
+#include "mozilla/Services.h"
 #include "nsWindowDbg.h"
 #include "nsXULAppAPI.h"
 #include "nsdefs.h"
@@ -81,10 +84,13 @@ void WinEventWindow::Ensure() {
 
   sDeviceNotifyHandle = InputDeviceUtils::RegisterNotification(sHiddenWindow);
 
+  ::WTSRegisterSessionNotification(sHiddenWindow, NOTIFY_FOR_THIS_SESSION);
+
   // It should be harmless to leak this window until destruction -- but other
   // parts of Gecko may expect all windows to be destroyed, so do that.
   mozilla::RunOnShutdown([]() {
     InputDeviceUtils::UnregisterNotification(sDeviceNotifyHandle);
+    ::WTSUnRegisterSessionNotification(sHiddenWindow);
 
     sHiddenWindowShutdown = true;
     ::DestroyWindow(sHiddenWindow);
@@ -107,7 +113,8 @@ static void NotifyThemeChanged(ThemeChangeKind aKind) {
 }
 
 static void OnSessionChange(WPARAM wParam, LPARAM lParam) {
-  if (wParam == WTS_SESSION_LOCK || wParam == WTS_SESSION_UNLOCK) {
+  if (wParam == WTS_SESSION_LOCK || wParam == WTS_SESSION_UNLOCK ||
+      wParam == WTS_CONSOLE_DISCONNECT) {
     DWORD currentSessionId;
     BOOL const rv =
         ::ProcessIdToSessionId(::GetCurrentProcessId(), &currentSessionId);
@@ -140,6 +147,22 @@ static void OnSessionChange(WPARAM wParam, LPARAM lParam) {
 
     if (auto* wwot = WinWindowOcclusionTracker::Get()) {
       wwot->OnSessionChange(wParam);
+    }
+
+    nsCOMPtr<nsIObserverService> observerService =
+        mozilla::services::GetObserverService();
+    if (observerService) {
+      if (wParam == WTS_SESSION_LOCK) {
+        observerService->NotifyObservers(
+            nullptr, NS_WIDGET_SCREEN_LOCKED_OBSERVER_TOPIC, nullptr);
+      } else if (wParam == WTS_CONSOLE_DISCONNECT) {
+        // WTS_CONSOLE_DISCONNECT fires on Fast User Switch and also on
+        // some RDP/session-disconnect scenarios. This is intentionally
+        // broad -- enterprise policy can disable it via the
+        // enterprise.signoutOnUserSwitch pref if needed.
+        observerService->NotifyObservers(
+            nullptr, NS_WIDGET_OS_USER_SWITCH_OBSERVER_TOPIC, nullptr);
+      }
     }
   }
 }
