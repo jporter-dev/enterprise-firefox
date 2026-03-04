@@ -33,6 +33,11 @@ const ErrorReport = {
         "chrome://global/locale/appstrings.properties"
       );
     });
+
+    this._wrapper.addEventListener("message-bar:user-dismissed", e => {
+      e.preventDefault();
+      e.target.classList.add("is-hidden");
+    });
   },
 
   reset() {
@@ -43,10 +48,9 @@ const ErrorReport = {
       return;
     }
     this._wrapper.classList.add("is-hidden");
-    const errors = this._wrapper.querySelectorAll(
-      ".felt-browser-error > div:not(.is-hidden)"
-    );
-    errors.forEach(e => e.classList.add("is-hidden"));
+    for (const bar of this._wrapper.querySelectorAll("moz-message-bar")) {
+      bar.classList.add("is-hidden");
+    }
   },
 
   async update(errorType, details = null, cause = null) {
@@ -93,14 +97,27 @@ const ErrorReport = {
 };
 
 async function connectToConsole(email) {
-  ErrorReport.reset();
-
   let posture;
   try {
     posture = await lazy.ConsoleClient.sendDevicePosture();
   } catch (err) {
     console.error(`FeltExtension: Failed to connect to console: ${err}`);
-    ErrorReport.update("felt-browser-error-connection", err.message, err.cause);
+
+    // Show simpler "No Network Connection" only for truly offline scenarios
+    // netOffline for offline mode, dnsNotFound2 for actual network disconnect
+    const NETWORK_ERRORS = new Set(["netOffline", "dnsNotFound2"]);
+    if (NETWORK_ERRORS.has(err.message)) {
+      ErrorReport.update(
+        "felt-browser-error-no-network",
+        "no-network-connection"
+      );
+    } else {
+      ErrorReport.update(
+        "felt-browser-error-connection",
+        err.message,
+        err.cause
+      );
+    }
     return;
   }
 
@@ -272,6 +289,7 @@ async function connectToConsole(email) {
     Ci.nsIWebProgress.NOTIFY_STATE_NETWORK | Ci.nsIWebProgress.NOTIFY_LOCATION
   );
 
+  ErrorReport.reset();
   document.querySelector(".felt-login__email-pane").classList.add("is-hidden");
   document.querySelector(".felt-login__sso").classList.remove("is-hidden");
 
