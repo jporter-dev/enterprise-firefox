@@ -44,6 +44,8 @@ run-if = [
 
 ["test_felt_browser_shutdown_crash_exit.py"]
 
+["test_felt_browser_close_warning.py"]
+
 ["test_felt_browser_signout.py"]
 
 ["test_felt_browser_signout_on_exit.py"]

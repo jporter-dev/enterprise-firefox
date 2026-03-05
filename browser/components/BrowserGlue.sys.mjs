@@ -1564,7 +1564,6 @@ BrowserGlue.prototype = {
         aCancelQuit.QueryInterface(Ci.nsISupportsPRBool).data = true;
         this._quitSource = "unknown";
       }
-      return;
     }
 
     // browser.warnOnQuit is a hidden global boolean to override all quit prompts.

@@ -11,10 +11,6 @@ sys.path.append(os.path.dirname(__file__))
 
 from base_test import Environment
 from felt_tests import FeltTests
-from marionette_driver.errors import (
-    NoAlertPresentException,
-    UnexpectedAlertOpen,
-)
 
 
 class BaseBrowserSignout(FeltTests):
@@ -51,27 +47,39 @@ class BaseBrowserSignout(FeltTests):
             == "ignore"
         ), "Driver should not auto-handle prompt"
 
-        try:
-            # This will cause an UnexpectedAlertPresentException, which is our expected signout dialog
-            self._logger.info("Clicking signout button in enterprise panel")
-            self.get_elem_child(".panelUI-enterprise__sign-out-btn").click()
-        except UnexpectedAlertOpen:
-            # Do nothing, signout dialog ("alert") is expected
-            pass
+        self._logger.info("Clicking signout button in enterprise panel")
+        self.get_elem_child(".panelUI-enterprise__sign-out-btn").click()
 
-        self._logger.info("Waiting for the signout dialog to open")
+        self._logger.info("Waiting for the custom signout dialog to open")
+        self._child_wait.until(
+            lambda _: self._child_driver.execute_script(
+                """
+                try {
+                    const dialog = document.getElementById('window-modal-dialog');
+                    return (dialog?.open && dialog.querySelector(".dialogFrame")
+                        ?.contentDocument
+                        ?.getElementById("enterpriseCloseDialog")
+                        ?.getButton('accept') !== null);
+                } catch (e) {
+                    return false;
+                }
+                """
+            )
+        )
 
-        def wait_for_and_accept_alert(driver):
-            try:
-                driver.switch_to_alert().accept()
-                self._logger.info(
-                    "Signing out the user by clicking the Signout button in the dialog"
-                )
-                return True
-            except NoAlertPresentException:
-                return False
-
-        self._waiter(self._child_driver).until(wait_for_and_accept_alert)
+        self._logger.info(
+            "Signing out the user by clicking the Signout button in the custom signout dialog"
+        )
+        self._child_driver.execute_script(
+            """
+            document.getElementById("window-modal-dialog")
+                .querySelector(".dialogFrame")
+                .contentDocument
+                .getElementById("enterpriseCloseDialog")
+                .getButton("accept")
+                .click();
+            """
+        )
 
         self._child_driver.set_context("content")
 
