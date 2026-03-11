@@ -678,9 +678,12 @@ export var TabCrashHandler = {
     }
 
     let dumpID = this.getDumpID(browser);
+    let policyAutoSubmit =
+      !!Services.policies.getActivePolicies()?.CrashReportsAutoSubmit;
     if (!dumpID) {
       return {
         hasReport: false,
+        policyAutoSubmit,
       };
     }
 
@@ -693,6 +696,7 @@ export var TabCrashHandler = {
       sendReport,
       includeURL,
       requestAutoSubmit,
+      policyAutoSubmit,
     };
 
     return data;

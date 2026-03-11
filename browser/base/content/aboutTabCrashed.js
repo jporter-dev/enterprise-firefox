@@ -164,6 +164,23 @@ var AboutTabCrashed = {
       document.getElementById("requestAutoSubmit").hidden = false;
     }
 
+    if (data.policyAutoSubmit) {
+      // Report is automatically sent, hide default title and message
+      // and disable reporting options since there's no report to customize.
+      document.documentElement.classList.add("crashDumpAvailable");
+      document.querySelector("#reportBox > h2").hidden = true;
+      document.getElementById("requestAutoSubmit").hidden = true;
+      document.getElementById("sendReport").disabled = true;
+      document.getElementById("comments").disabled = true;
+      document.getElementById("includeURL").disabled = true;
+      document.getElementById("autoSubmit").disabled = true;
+
+      // Show the policy-based title and message.
+      document.getElementById("policyAutoSubmitTitle").hidden = false;
+      document.getElementById("policyAutoSubmitMessage").hidden = false;
+      this.showCrashReportUI(true);
+    }
+
     let event = new CustomEvent("AboutTabCrashedReady", { bubbles: true });
     document.dispatchEvent(event);
   },
