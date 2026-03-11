@@ -542,6 +542,10 @@
       }
     },
 
+    "CrashReportsAutoSubmit": {
+      "type": "boolean"
+    },
+
     "DefaultDownloadDirectory": {
       "type": "string"
     },
