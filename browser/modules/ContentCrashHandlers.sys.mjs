@@ -680,10 +680,9 @@ export var TabCrashHandler = {
     let dumpID = this.getDumpID(browser);
     let policyAutoSubmit =
       !!Services.policies.getActivePolicies()?.CrashReportsAutoSubmit;
-    if (!dumpID) {
+    if (!dumpID && !policyAutoSubmit) {
       return {
         hasReport: false,
-        policyAutoSubmit,
       };
     }
 
@@ -691,15 +690,21 @@ export var TabCrashHandler = {
     let sendReport = this.prefs.getBoolPref("sendReport");
     let includeURL = this.prefs.getBoolPref("includeURL");
 
-    let data = {
+    if (policyAutoSubmit) {
+      return {
+        hasReport: false,
+        policyAutoSubmit,
+        sendReport,
+        includeURL,
+      };
+    }
+
+    return {
       hasReport: true,
       sendReport,
       includeURL,
       requestAutoSubmit,
-      policyAutoSubmit,
     };
-
-    return data;
   },
 
   onAboutTabCrashedUnload(browser) {
