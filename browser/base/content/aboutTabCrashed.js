@@ -148,37 +148,35 @@ var AboutTabCrashed = {
   onSetCrashReportAvailable(message) {
     let data = message.data;
 
-    if (data.hasReport) {
+    if (data.hasReport || data.policyAutoSubmit) {
       this.hasReport = true;
       document.documentElement.classList.add("crashDumpAvailable");
 
       document.getElementById("sendReport").checked = data.sendReport;
       document.getElementById("includeURL").checked = data.includeURL;
 
-      this.showCrashReportUI(data.sendReport);
+      if (data.policyAutoSubmit) {
+        // Report is automatically sent, hide default title and message
+        // and disable reporting options since there's no report to customize.
+        document.getElementById("crashedRequestHelp").hidden = true;
+        document.getElementById("requestAutoSubmit").hidden = true;
+        document.getElementById("comments").hidden = true;
+        document.getElementById("sendReport").disabled = true;
+        document.getElementById("includeURL").disabled = true;
+        document.getElementById("autoSubmit").disabled = true;
+
+        // Show the policy-based title and message.
+        document.getElementById("policyAutoSubmitTitle").hidden = false;
+        document.getElementById("policyAutoSubmitMessage").hidden = false;
+      }
+
+      this.showCrashReportUI(data.policyAutoSubmit || data.sendReport);
     } else {
       this.showCrashReportUI(false);
     }
 
     if (data.requestAutoSubmit) {
       document.getElementById("requestAutoSubmit").hidden = false;
-    }
-
-    if (data.policyAutoSubmit) {
-      // Report is automatically sent, hide default title and message
-      // and disable reporting options since there's no report to customize.
-      document.documentElement.classList.add("crashDumpAvailable");
-      document.querySelector("#reportBox > h2").hidden = true;
-      document.getElementById("requestAutoSubmit").hidden = true;
-      document.getElementById("sendReport").disabled = true;
-      document.getElementById("comments").disabled = true;
-      document.getElementById("includeURL").disabled = true;
-      document.getElementById("autoSubmit").disabled = true;
-
-      // Show the policy-based title and message.
-      document.getElementById("policyAutoSubmitTitle").hidden = false;
-      document.getElementById("policyAutoSubmitMessage").hidden = false;
-      this.showCrashReportUI(true);
     }
 
     let event = new CustomEvent("AboutTabCrashedReady", { bubbles: true });
