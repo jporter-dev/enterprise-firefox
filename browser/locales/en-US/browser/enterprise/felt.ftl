@@ -23,9 +23,10 @@ felt-version =
 ## Error details when launching the browser crashes
 
 felt-browser-error-sso-timeout2 =
-    .heading = Sign-in timed out. Please try again, or contact your administrator if the problem persists.
+    .heading = Sign-in timed out
+    .message = Please try again, or contact your administrator if the problem persists.
 felt-browser-error-multiple-crashes2 =
-    .heading = { -brand-short-name } crashed multiple times.
+    .heading = { -brand-short-name } crashed multiple times
 
 ## Network error headings
 
