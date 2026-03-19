@@ -37,6 +37,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
   DistributionManagement: "resource:///modules/distribution.sys.mjs",
   DownloadsViewableInternally:
     "moz-src:///browser/components/downloads/DownloadsViewableInternally.sys.mjs",
+  EnterpriseHandler: "resource:///modules/enterprise/EnterpriseHandler.sys.mjs",
   ExtensionsUI: "resource:///modules/ExtensionsUI.sys.mjs",
   FormAutofillUtils: "resource://gre/modules/shared/FormAutofillUtils.sys.mjs",
   Interactions: "moz-src:///browser/components/places/Interactions.sys.mjs",
@@ -1539,6 +1540,16 @@ BrowserGlue.prototype = {
     // and also "we're quitting by closing the last window".
 
     if (aQuitType == "restart" || aQuitType == "os-restart") {
+      return;
+    }
+
+    // Cancel quitting and instead show the Enterprise signout dialog
+    if (AppConstants.MOZ_ENTERPRISE) {
+      aCancelQuit.QueryInterface(Ci.nsISupportsPRBool).data = true;
+      let topWindow = lazy.BrowserWindowTracker.getTopWindow({
+        allowFromInactiveWorkspace: true,
+      });
+      lazy.EnterpriseHandler.onSignOut(topWindow);
       return;
     }
 
