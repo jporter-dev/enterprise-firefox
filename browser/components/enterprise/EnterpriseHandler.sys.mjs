@@ -32,6 +32,7 @@ export const EnterpriseHandler = {
    * @type {{name:string, email:string, pictureUrl:string} | null}
    */
   _signedInUser: null,
+  _logoUrl: null,
 
   /**
    * Whether the handler is initialized, meaning the user information
@@ -51,6 +52,11 @@ export const EnterpriseHandler = {
   async init(window) {
     if (!this._isInitialized) {
       lazy.log.debug("Initializing...");
+
+      if (!this._setLogoUrlFromPref() && !this._setLogoFromDistribution()) {
+        lazy.log.debug("No custom enterprise logo configured.");
+      }
+
       await this.initUser();
       this._isInitialized = true;
     }
@@ -106,10 +112,11 @@ export const EnterpriseHandler = {
     const toolbarLogo = window.document.querySelector(
       "#enterprise-company-logo__wrapper > image"
     );
-    const logoUrl = this._getLogoUrl();
-
-    if (logoUrl) {
-      toolbarLogo.style.setProperty("list-style-image", `url("${logoUrl}")`);
+    if (this._logoUrl) {
+      toolbarLogo.style.setProperty(
+        "list-style-image",
+        `url("${this._logoUrl}")`
+      );
     }
 
     if (!this._signedInUser) {
@@ -244,35 +251,37 @@ export const EnterpriseHandler = {
 
   uninit() {
     this._signedInUser = {};
+    this._logoUrl = null;
     this._isInitialized = false;
   },
 
-  _getLogoUrl() {
-    const logoUrl = Services.prefs.getStringPref(
+  _setLogoUrlFromPref() {
+    const prefLogoUrl = Services.prefs.getStringPref(
       ENTERPRISE_TOOLBAR_LOGO_URL_PREF,
       ""
     );
 
-    // if pref is not set, try loading from repack
-    if (!logoUrl) {
-      return this._getDistributionLogoUrl();
+    // skip if pref is not set
+    if (!prefLogoUrl) {
+      return false;
     }
 
     // allow https: URLs and data: URIs for common image formats with base64 encoding only.
     const logoUrlPattern =
       /^(https:\/\/|data:image\/(?:png|jpeg|gif|webp|svg\+xml);base64,)/;
-    if (!logoUrlPattern.test(logoUrl)) {
-      return null;
+    if (!logoUrlPattern.test(prefLogoUrl)) {
+      console.warn(`Invalid logo URL in pref: ${prefLogoUrl}`);
+      return false;
     }
 
     try {
-      return new URL(logoUrl).href;
-    } catch {
-      return null;
-    }
+      this._logoUrl = new URL(prefLogoUrl).href;
+      return true;
+    } catch {}
+    return false;
   },
 
-  _getDistributionLogoUrl() {
+  _setLogoFromDistribution() {
     const SUPPORTED_EXTENSIONS = [
       ".svg",
       ".png",
@@ -283,15 +292,23 @@ export const EnterpriseHandler = {
     ];
     const BADGE_LOGO_NAME = "badge-logo";
     try {
-      let distDir = Services.dirsvc.get("XREAppDist", Ci.nsIFile);
-      for (let ext of SUPPORTED_EXTENSIONS) {
-        let logoFile = distDir.clone();
+      const distDir = Services.dirsvc.get("XREAppDist", Ci.nsIFile);
+      for (const ext of SUPPORTED_EXTENSIONS) {
+        const logoFile = distDir.clone();
         logoFile.append(`${BADGE_LOGO_NAME}${ext}`);
         if (logoFile.exists()) {
-          return Services.io.newFileURI(logoFile).spec;
+          const protocolHandler = Services.io
+            .getProtocolHandler("resource")
+            .QueryInterface(Ci.nsIResProtocolHandler);
+          protocolHandler.setSubstitution(
+            "enterprise-distribution",
+            Services.io.newFileURI(distDir)
+          );
+          this._logoUrl = `resource://enterprise-distribution/${BADGE_LOGO_NAME}${ext}`;
+          return true;
         }
       }
     } catch {}
-    return null;
+    return false;
   },
 };

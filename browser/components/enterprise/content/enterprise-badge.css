@@ -59,8 +59,8 @@
 
 #enterprise-company-logo__wrapper {
   /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
-  min-width: 0;
   max-width: 80px;
+  /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
   height: var(--size-item-medium);
   justify-content: center;
   align-items: center;
