@@ -25,6 +25,27 @@ ChromeUtils.defineLazyGetter(lazy, "log", () => {
 });
 
 const PROMPT_ON_SIGNOUT_PREF = "enterprise.promptOnSignout";
+const ENTERPRISE_TOOLBAR_LOGO_URL_PREF = "enterprise.toolbar.logoUrl";
+
+/**
+ * Validate and normalize logo URL
+ *
+ * @param {*} logoUrl
+ */
+function _resolveLogoUrl(logoUrl) {
+  // allow https: URLs and data: URIs for common image formats with base64 encoding only.
+  const logoUrlPattern =
+    /^(https:\/\/|data:image\/(?:png|jpeg|gif|webp|svg\+xml);base64,)/;
+  if (!logoUrlPattern.test(logoUrl)) {
+    return null;
+  }
+
+  try {
+    return new URL(logoUrl).href;
+  } catch {
+    return null;
+  }
+}
 
 export const EnterpriseHandler = {
   /**
@@ -102,6 +123,21 @@ export const EnterpriseHandler = {
    */
   updateBadge(window) {
     const userIcon = window.document.querySelector("#enterprise-user-icon");
+    const toolbarLogo = window.document.querySelector(
+      "#enterprise-company-logo__wrapper > image"
+    );
+    const logoUrl = Services.prefs.getStringPref(
+      ENTERPRISE_TOOLBAR_LOGO_URL_PREF,
+      ""
+    );
+    const validLogoUrl = logoUrl && _resolveLogoUrl(logoUrl);
+
+    if (validLogoUrl) {
+      toolbarLogo.style.setProperty(
+        "list-style-image",
+        `url("${validLogoUrl}")`
+      );
+    }
 
     if (!this._signedInUser) {
       // Hide user icon from enterprise badge until we have user information

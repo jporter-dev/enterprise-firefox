@@ -19,6 +19,8 @@
 }
 
 #enterprise-badge-toolbar-button {
+  flex-shrink: 0;
+
   &:focus-visible {
     outline: none;
 
@@ -40,7 +42,6 @@
   padding: var(--space-xxsmall) var(--space-xsmall);
   align-items: center;
   gap: var(--space-small);
-  flex-shrink: 0;
 
   border-radius: var(--border-radius-medium);
   /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
@@ -58,11 +59,11 @@
 
 #enterprise-company-logo__wrapper {
   /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
+  min-width: 0;
   max-width: 80px;
-  max-height: var(--size-item-medium);
+  height: var(--size-item-medium);
   justify-content: center;
   align-items: center;
-  flex-shrink: 0;
 
   > image {
     width: 100%;
