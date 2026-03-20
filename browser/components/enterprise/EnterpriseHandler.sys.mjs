@@ -27,26 +27,6 @@ ChromeUtils.defineLazyGetter(lazy, "log", () => {
 const PROMPT_ON_SIGNOUT_PREF = "enterprise.promptOnSignout";
 const ENTERPRISE_TOOLBAR_LOGO_URL_PREF = "enterprise.toolbar.logoUrl";
 
-/**
- * Validate and normalize logo URL
- *
- * @param {*} logoUrl
- */
-function _resolveLogoUrl(logoUrl) {
-  // allow https: URLs and data: URIs for common image formats with base64 encoding only.
-  const logoUrlPattern =
-    /^(https:\/\/|data:image\/(?:png|jpeg|gif|webp|svg\+xml);base64,)/;
-  if (!logoUrlPattern.test(logoUrl)) {
-    return null;
-  }
-
-  try {
-    return new URL(logoUrl).href;
-  } catch {
-    return null;
-  }
-}
-
 export const EnterpriseHandler = {
   /**
    * @type {{name:string, email:string, pictureUrl:string} | null}
@@ -126,17 +106,10 @@ export const EnterpriseHandler = {
     const toolbarLogo = window.document.querySelector(
       "#enterprise-company-logo__wrapper > image"
     );
-    const logoUrl = Services.prefs.getStringPref(
-      ENTERPRISE_TOOLBAR_LOGO_URL_PREF,
-      ""
-    );
-    const validLogoUrl = logoUrl && _resolveLogoUrl(logoUrl);
+    const logoUrl = this._getLogoUrl();
 
-    if (validLogoUrl) {
-      toolbarLogo.style.setProperty(
-        "list-style-image",
-        `url("${validLogoUrl}")`
-      );
+    if (logoUrl) {
+      toolbarLogo.style.setProperty("list-style-image", `url("${logoUrl}")`);
     }
 
     if (!this._signedInUser) {
@@ -272,5 +245,53 @@ export const EnterpriseHandler = {
   uninit() {
     this._signedInUser = {};
     this._isInitialized = false;
+  },
+
+  _getLogoUrl() {
+    const logoUrl = Services.prefs.getStringPref(
+      ENTERPRISE_TOOLBAR_LOGO_URL_PREF,
+      ""
+    );
+
+    // if pref is not set, try loading from repack
+    if (!logoUrl) {
+      return this._getDistributionLogoUrl();
+    }
+
+    // allow https: URLs and data: URIs for common image formats with base64 encoding only.
+    const logoUrlPattern =
+      /^(https:\/\/|data:image\/(?:png|jpeg|gif|webp|svg\+xml);base64,)/;
+    if (!logoUrlPattern.test(logoUrl)) {
+      return null;
+    }
+
+    try {
+      return new URL(logoUrl).href;
+    } catch {
+      return null;
+    }
+  },
+
+  _getDistributionLogoUrl() {
+    const SUPPORTED_EXTENSIONS = [
+      ".svg",
+      ".png",
+      ".jpeg",
+      ".jpg",
+      ".gif",
+      ".webp",
+    ];
+    const BADGE_LOGO_NAME = "badge-logo";
+    try {
+      let distDir = Services.dirsvc.get("XREAppDist", Ci.nsIFile);
+      for (let ext of SUPPORTED_EXTENSIONS) {
+        let logoFile = distDir.clone();
+        logoFile.append(`${BADGE_LOGO_NAME}${ext}`);
+        if (logoFile.exists()) {
+          return Services.io.newFileURI(logoFile).spec;
+        }
+      }
+    } catch {}
+    return null;
   },
 };
