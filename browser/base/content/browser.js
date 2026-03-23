@@ -3830,23 +3830,6 @@ function WindowIsClosing(event) {
  * @returns true if closing can proceed, false if it got cancelled.
  */
 function warnAboutClosingWindow() {
-  // If this is the last Enterprise Firefox window, warn about signing out.
-  if (AppConstants.MOZ_ENTERPRISE) {
-    let isLastWindow = true;
-    for (let win of browserWindows()) {
-      if (!win.closed && win != window) {
-        isLastWindow = false;
-        break;
-      }
-    }
-    if (isLastWindow) {
-      // Return false to prevent the standard close flow; warnAboutClosing
-      // handles shutdown asynchronously after the user confirms the dialog.
-      EnterpriseHandler.onSignOut(window);
-      return false;
-    }
-  }
-
   // Popups aren't considered full browser windows; we also ignore private windows.
   let isPBWindow =
     PrivateBrowsingUtils.isWindowPrivate(window) &&

@@ -37,7 +37,6 @@ ChromeUtils.defineESModuleGetters(lazy, {
   DistributionManagement: "resource:///modules/distribution.sys.mjs",
   DownloadsViewableInternally:
     "moz-src:///browser/components/downloads/DownloadsViewableInternally.sys.mjs",
-  EnterpriseHandler: "resource:///modules/enterprise/EnterpriseHandler.sys.mjs",
   ExtensionsUI: "resource:///modules/ExtensionsUI.sys.mjs",
   FormAutofillUtils: "resource://gre/modules/shared/FormAutofillUtils.sys.mjs",
   Interactions: "moz-src:///browser/components/places/Interactions.sys.mjs",
@@ -79,6 +78,13 @@ ChromeUtils.defineESModuleGetters(lazy, {
   WindowsRegistry: "resource://gre/modules/WindowsRegistry.sys.mjs",
   setTimeout: "resource://gre/modules/Timer.sys.mjs",
 });
+
+if (AppConstants.MOZ_ENTERPRISE) {
+  ChromeUtils.defineESModuleGetters(lazy, {
+    EnterpriseHandler:
+      "resource:///modules/enterprise/EnterpriseHandler.sys.mjs",
+  });
+}
 
 XPCOMUtils.defineLazyServiceGetters(lazy, {
   BrowserHandler: ["@mozilla.org/browser/clh;1", Ci.nsIBrowserHandler],
@@ -1543,14 +1549,22 @@ BrowserGlue.prototype = {
       return;
     }
 
-    // Cancel quitting and instead show the Enterprise signout dialog
-    if (AppConstants.MOZ_ENTERPRISE) {
-      aCancelQuit.QueryInterface(Ci.nsISupportsPRBool).data = true;
+    if (
+      AppConstants.MOZ_ENTERPRISE &&
+      !lazy.EnterpriseHandler._signoutComplete
+    ) {
       let topWindow = lazy.BrowserWindowTracker.getTopWindow({
         allowFromInactiveWorkspace: true,
       });
-      lazy.EnterpriseHandler.onSignOut(topWindow);
-      return;
+      if (topWindow) {
+        aCancelQuit.QueryInterface(Ci.nsISupportsPRBool).data = true;
+        lazy.EnterpriseHandler.onSignOut(topWindow, false).then(confirmed => {
+          if (confirmed) {
+            Services.startup.quit(Ci.nsIAppStartup.eAttemptQuit);
+          }
+        });
+        return;
+      }
     }
 
     // browser.warnOnQuit is a hidden global boolean to override all quit prompts.
