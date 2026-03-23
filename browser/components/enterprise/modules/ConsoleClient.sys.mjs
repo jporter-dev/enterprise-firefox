@@ -24,6 +24,7 @@ ChromeUtils.defineLazyGetter(lazy, "log", () => {
  */
 export const PREFS = {
   CONSOLE_ADDRESS: "enterprise.console.address",
+  LOGO_URL: "enterprise.logoUrl",
 };
 
 /**

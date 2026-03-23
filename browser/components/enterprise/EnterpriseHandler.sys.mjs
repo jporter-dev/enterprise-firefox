@@ -15,6 +15,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
   BrowserUtils: "resource://gre/modules/BrowserUtils.sys.mjs",
   ConsoleClient: "resource:///modules/enterprise/ConsoleClient.sys.mjs",
   EnterpriseCommon: "resource:///modules/enterprise/EnterpriseCommon.sys.mjs",
+  PREFS: "resource:///modules/enterprise/ConsoleClient.sys.mjs",
 });
 
 ChromeUtils.defineLazyGetter(lazy, "log", () => {
@@ -25,14 +26,12 @@ ChromeUtils.defineLazyGetter(lazy, "log", () => {
 });
 
 const PROMPT_ON_SIGNOUT_PREF = "enterprise.promptOnSignout";
-const ENTERPRISE_TOOLBAR_LOGO_URL_PREF = "enterprise.toolbar.logoUrl";
 
 export const EnterpriseHandler = {
   /**
    * @type {{name:string, email:string, pictureUrl:string} | null}
    */
   _signedInUser: null,
-  _logoUrl: null,
 
   /**
    * Whether the handler is initialized, meaning the user information
@@ -52,11 +51,6 @@ export const EnterpriseHandler = {
   async init(window) {
     if (!this._isInitialized) {
       lazy.log.debug("Initializing...");
-
-      if (!this._setLogoUrlFromPref() && !this._setLogoFromDistribution()) {
-        lazy.log.debug("No custom enterprise logo configured.");
-      }
-
       await this.initUser();
       this._isInitialized = true;
     }
@@ -108,16 +102,9 @@ export const EnterpriseHandler = {
    * @param {Window} window chrome window
    */
   updateBadge(window) {
+    this._setLogoUrlFromPref(window);
+
     const userIcon = window.document.querySelector("#enterprise-user-icon");
-    const toolbarLogo = window.document.querySelector(
-      "#enterprise-company-logo__wrapper > image"
-    );
-    if (this._logoUrl) {
-      toolbarLogo.style.setProperty(
-        "list-style-image",
-        `url("${this._logoUrl}")`
-      );
-    }
 
     if (!this._signedInUser) {
       // Hide user icon from enterprise badge until we have user information
@@ -251,19 +238,14 @@ export const EnterpriseHandler = {
 
   uninit() {
     this._signedInUser = {};
-    this._logoUrl = null;
     this._isInitialized = false;
   },
 
-  _setLogoUrlFromPref() {
-    const prefLogoUrl = Services.prefs.getStringPref(
-      ENTERPRISE_TOOLBAR_LOGO_URL_PREF,
-      ""
-    );
+  _setLogoUrlFromPref(window) {
+    const prefLogoUrl = Services.prefs.getStringPref(lazy.PREFS.LOGO_URL, "");
 
-    // skip if pref is not set
     if (!prefLogoUrl) {
-      return false;
+      return;
     }
 
     // allow https: URLs and data: URIs for common image formats with base64 encoding only.
@@ -271,44 +253,16 @@ export const EnterpriseHandler = {
       /^(https:\/\/|data:image\/(?:png|jpeg|gif|webp|svg\+xml);base64,)/;
     if (!logoUrlPattern.test(prefLogoUrl)) {
       console.warn(`Invalid logo URL in pref: ${prefLogoUrl}`);
-      return false;
+      return;
     }
 
     try {
-      this._logoUrl = new URL(prefLogoUrl).href;
-      return true;
-    } catch {}
-    return false;
-  },
+      const logoUrl = new URL(prefLogoUrl).href;
 
-  _setLogoFromDistribution() {
-    const SUPPORTED_EXTENSIONS = [
-      ".svg",
-      ".png",
-      ".jpeg",
-      ".jpg",
-      ".gif",
-      ".webp",
-    ];
-    const BADGE_LOGO_NAME = "badge-logo";
-    try {
-      const distDir = Services.dirsvc.get("XREAppDist", Ci.nsIFile);
-      for (const ext of SUPPORTED_EXTENSIONS) {
-        const logoFile = distDir.clone();
-        logoFile.append(`${BADGE_LOGO_NAME}${ext}`);
-        if (logoFile.exists()) {
-          const protocolHandler = Services.io
-            .getProtocolHandler("resource")
-            .QueryInterface(Ci.nsIResProtocolHandler);
-          protocolHandler.setSubstitution(
-            "enterprise-distribution",
-            Services.io.newFileURI(distDir)
-          );
-          this._logoUrl = `resource://enterprise-distribution/${BADGE_LOGO_NAME}${ext}`;
-          return true;
-        }
-      }
+      const toolbarLogo = window.document.querySelector(
+        "#enterprise-company-logo__wrapper > image"
+      );
+      toolbarLogo.style.setProperty("list-style-image", `url("${logoUrl}")`);
     } catch {}
-    return false;
   },
 };
