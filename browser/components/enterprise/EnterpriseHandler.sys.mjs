@@ -39,6 +39,12 @@ export const EnterpriseHandler = {
   _isInitialized: false,
 
   /**
+   * Set to true once signout has completed, used as a re-entry guard so that
+   * the quit triggered after signout is not intercepted again.
+   */
+  _signoutComplete: false,
+
+  /**
    * Handles the enterprise state for each new browser window.
    * On first call:
    *    - Make a request to the console to retrieve the user information of the signed in user.
@@ -146,15 +152,15 @@ export const EnterpriseHandler = {
     window.PanelUI.mainView.setAttribute("restricted-enterprise-view", true);
   },
 
-  async onSignOut(window) {
+  async onSignOut(window, shouldTriggerShutdown = true) {
     const shouldInformOnSignout = Services.prefs.getBoolPref(
       PROMPT_ON_SIGNOUT_PREF,
       true
     );
 
     if (!shouldInformOnSignout) {
-      await this.initiateShutdown();
-      return;
+      await this.initiateShutdown(shouldTriggerShutdown);
+      return true;
     }
 
     const [title, message, checkLabel, signoutBtnLabel] =
@@ -186,7 +192,7 @@ export const EnterpriseHandler = {
 
     if (result.get("buttonNumClicked") === 1) {
       // User canceled signout. Also ignore any checkbox toggling.
-      return;
+      return false;
     }
 
     if (!result.get("checked")) {
@@ -194,23 +200,28 @@ export const EnterpriseHandler = {
       Services.prefs.setBoolPref(PROMPT_ON_SIGNOUT_PREF, result.get("checked"));
     }
 
-    await this.initiateShutdown();
+    await this.initiateShutdown(shouldTriggerShutdown);
+    return true;
   },
 
-  async initiateShutdown() {
+  async initiateShutdown(shouldTriggerShutdown = true) {
     // TODO: Bug 2001029 - Assert or force-enable session restore?
 
     try {
-      await lazy.ConsoleClient.signoutUser();
+      await lazy.ConsoleClient.signoutUser(shouldTriggerShutdown);
     } catch (e) {
       console.error(`Unable to signout the user: ${e}`);
     } finally {
-      Services.startup.quit(Ci.nsIAppStartup.eForceQuit);
+      this._signoutComplete = true;
+      if (shouldTriggerShutdown) {
+        Services.startup.quit(Ci.nsIAppStartup.eForceQuit);
+      }
     }
   },
 
   uninit() {
     this._signedInUser = {};
+    this._signoutComplete = false;
     this._isInitialized = false;
   },
 };

@@ -652,7 +652,12 @@ export const ConsoleClient = {
    *
    * This is expected to be executed from the browser side.
    */
-  async signoutUser() {
+  /**
+   * @param {boolean} transferToFelt - if true, hands control back to Felt after
+   *   signing out (e.g. badge sign-out). Pass false when quitting Firefox so
+   *   Felt does not surface its login UI.
+   */
+  async signoutUser(transferToFelt = true) {
     if (!Services.felt.isFeltBrowser()) {
       throw new Error(
         "Performing signout from something else than browser is wrong"
@@ -667,15 +672,17 @@ export const ConsoleClient = {
       // After successful server-side logout clear local state and notify FELT.
       this.clearTokenData();
 
-      // Make sure we signal early enough to the system that FELT should take
-      // over. Relevant at least for macOS dock icon. Not having this would
-      // at least intermittently result in missing dock icon for FELT after
-      // signout.
-      Services.felt.makeBackgroundProcess(true);
+      if (transferToFelt) {
+        // Make sure we signal early enough to the system that FELT should take
+        // over. Relevant at least for macOS dock icon. Not having this would
+        // at least intermittently result in missing dock icon for FELT after
+        // signout.
+        Services.felt.makeBackgroundProcess(true);
 
-      // Notify FELT that we are logging out so the shutdown is a normal one
-      // that should not be followed by restarting the process.
-      Services.felt.performSignout();
+        // Notify FELT that we are logging out so the shutdown is a normal one
+        // that should not be followed by restarting the process.
+        Services.felt.performSignout();
+      }
       return;
     }
 
