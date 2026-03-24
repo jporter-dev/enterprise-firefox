@@ -46,6 +46,12 @@ export const EnterpriseHandler = {
   _signoutComplete: false,
 
   /**
+   * Set to true when the enterprise block defers signout to the native
+   * warnOnQuitShortcut dialog. Reset once signout is performed or cancelled.
+   */
+  _signoutPending: false,
+
+  /**
    * Handles the enterprise state for each new browser window.
    * On first call:
    *    - Make a request to the console to retrieve the user information of the signed in user.
@@ -250,6 +256,7 @@ export const EnterpriseHandler = {
   uninit() {
     this._signedInUser = {};
     this._signoutComplete = false;
+    this._signoutPending = false;
     this._isInitialized = false;
   },
 
