@@ -1549,40 +1549,17 @@ BrowserGlue.prototype = {
       return;
     }
 
-    if (
-      AppConstants.MOZ_ENTERPRISE &&
-      !lazy.EnterpriseHandler._signoutComplete
-    ) {
+    if (AppConstants.MOZ_ENTERPRISE) {
       const topWindow = lazy.BrowserWindowTracker.getTopWindow({
         allowFromInactiveWorkspace: true,
       });
       if (topWindow) {
-        const shouldWarnForShortcut =
-          this._quitSource == "shortcut" &&
-          Services.prefs.getBoolPref("browser.warnOnQuitShortcut");
-        const warnOnSignout = Services.prefs.getBoolPref(
-          "enterprise.promptOnSignout",
-          true
-        );
-        if (
-          !warnOnSignout &&
-          shouldWarnForShortcut &&
-          Services.prefs.getBoolPref("browser.warnOnQuit")
-        ) {
-          // When promptOnSignout is false and warnOnQuitShortcut applies, let
-          // the native dialog run instead of the enterprise one. The signout
-          // will be deferred until the user confirms that dialog.
-          lazy.EnterpriseHandler._signoutComplete = true;
-          lazy.EnterpriseHandler._signoutPending = true;
+        if (lazy.EnterpriseHandler.onSignOutSync(topWindow)) {
+          this._quitSource = "unknown";
         } else {
           aCancelQuit.QueryInterface(Ci.nsISupportsPRBool).data = true;
-          lazy.EnterpriseHandler.onSignOut(topWindow, false).then(confirmed => {
-            if (confirmed) {
-              Services.startup.quit(Ci.nsIAppStartup.eAttemptQuit);
-            }
-          });
-          return;
         }
+        return;
       }
     }
 
@@ -1745,19 +1722,6 @@ BrowserGlue.prototype = {
     }
 
     this._quitSource = "unknown";
-
-    if (AppConstants.MOZ_ENTERPRISE && lazy.EnterpriseHandler._signoutPending) {
-      if (buttonPressed == 0) {
-        lazy.EnterpriseHandler._signoutPending = false;
-        aCancelQuit.QueryInterface(Ci.nsISupportsPRBool).data = true;
-        lazy.EnterpriseHandler.initiateShutdown(false).then(() => {
-          Services.startup.quit(Ci.nsIAppStartup.eAttemptQuit);
-        });
-        return;
-      }
-      lazy.EnterpriseHandler._signoutPending = false;
-      lazy.EnterpriseHandler._signoutComplete = false;
-    }
 
     aCancelQuit.data = buttonPressed != 0;
   },

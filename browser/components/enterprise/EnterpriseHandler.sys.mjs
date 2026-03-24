@@ -5,13 +5,14 @@
 const lazy = {};
 
 ChromeUtils.defineLazyGetter(lazy, "localization", () => {
-  return new Localization([
-    "browser/enterprise/enterprise.ftl",
-    "branding/brand.ftl",
-  ]);
+  return new Localization(
+    ["browser/enterprise/enterprise.ftl", "branding/brand.ftl"],
+    true
+  );
 });
 
 ChromeUtils.defineESModuleGetters(lazy, {
+  AsyncShutdown: "resource://gre/modules/AsyncShutdown.sys.mjs",
   BrowserUtils: "resource://gre/modules/BrowserUtils.sys.mjs",
   ConsoleClient: "resource:///modules/enterprise/ConsoleClient.sys.mjs",
   EnterpriseCommon: "resource:///modules/enterprise/EnterpriseCommon.sys.mjs",
@@ -39,16 +40,12 @@ export const EnterpriseHandler = {
   _isInitialized: false,
 
   /**
-   * Set to true once signout has completed, used as a re-entry guard so that
-   * the quit triggered after signout is not intercepted again.
+   * Set to true when signout has been explicitly authorized (user confirmed
+   * the prompt, or promptOnSignout is false). Gates the appShutdownConfirmed
+   * blocker so that non-signout quits (e.g. restarts for updates) do not
+   * trigger a signout.
    */
-  _signoutComplete: false,
-
-  /**
-   * Set to true when the enterprise block defers signout to the native
-   * warnOnQuitShortcut dialog. Reset once signout is performed or cancelled.
-   */
-  _signoutPending: false,
+  _signoutAuthorized: false,
 
   /**
    * Handles the enterprise state for each new browser window.
@@ -63,6 +60,7 @@ export const EnterpriseHandler = {
     if (!this._isInitialized) {
       lazy.log.debug("Initializing...");
       await this.initUser();
+      this.registerSignoutBlocker();
       this._isInitialized = true;
     }
     this.updateBadge(window);
@@ -79,6 +77,15 @@ export const EnterpriseHandler = {
       console.warn(
         "EnterpriseHandler: Unable to initialize enterprise user: ",
         e
+      );
+    }
+  },
+
+  registerSignoutBlocker() {
+    if (Services.felt.isFeltBrowser()) {
+      lazy.AsyncShutdown.appShutdownConfirmed.addBlocker(
+        "EnterpriseHandler: signing out user on shutdown",
+        () => this._signoutOnShutdown()
       );
     }
   },
@@ -158,14 +165,79 @@ export const EnterpriseHandler = {
     window.PanelUI.mainView.setAttribute("restricted-enterprise-view", true);
   },
 
-  async onSignOut(window, shouldTriggerShutdown = true) {
+  /**
+   * Shows the signout confirmation prompt synchronously. Used as a gate in the
+   * quit-application-requested observer to allow or block the quit before the
+   * async shutdown blocker performs the actual signout.
+   *
+   * @param {Window} window - Chrome window to use as dialog parent.
+   * @returns {boolean} true if the user confirmed signout, false if cancelled.
+   */
+  onSignOutSync(window) {
     const shouldInformOnSignout = Services.prefs.getBoolPref(
       PROMPT_ON_SIGNOUT_PREF,
       true
     );
 
     if (!shouldInformOnSignout) {
-      await this.initiateShutdown(shouldTriggerShutdown);
+      this._signoutAuthorized = true;
+      return true;
+    }
+
+    const [title, message, checkLabel, signoutBtnLabel] =
+      lazy.localization.formatValuesSync([
+        { id: "enterprise-signout-prompt-title" },
+        { id: "enterprise-signout-prompt-message" },
+        { id: "enterprise-signout-prompt-checkbox-label" },
+        { id: "enterprise-signout-prompt-primary-btn-label" },
+      ]);
+
+    const flags =
+      Services.prompt.BUTTON_TITLE_IS_STRING * Services.prompt.BUTTON_POS_0 +
+      Services.prompt.BUTTON_TITLE_CANCEL * Services.prompt.BUTTON_POS_1 +
+      Services.prompt.BUTTON_POS_0_DEFAULT;
+
+    const checkState = { value: true };
+    // buttonPressed will be 0 for Signout and 1 for Cancel
+    const buttonPressed = Services.prompt.confirmEx(
+      window,
+      title,
+      message,
+      flags,
+      signoutBtnLabel,
+      null,
+      null,
+      checkLabel,
+      checkState
+    );
+
+    if (buttonPressed === 1) {
+      return false;
+    }
+
+    if (!checkState.value) {
+      Services.prefs.setBoolPref(PROMPT_ON_SIGNOUT_PREF, checkState.value);
+    }
+
+    this._signoutAuthorized = true;
+    return true;
+  },
+
+  /**
+   * Shows the signout confirmation prompt and triggers shutdown if confirmed.
+   * The actual signout is performed by the appShutdownConfirmed blocker.
+   *
+   * @param {Window} window - Chrome window to use as dialog parent.
+   * @returns {Promise<boolean>} Resolves to true if shutdown was triggered, false if cancelled.
+   */
+  async onSignOut(window) {
+    const shouldInformOnSignout = Services.prefs.getBoolPref(
+      PROMPT_ON_SIGNOUT_PREF,
+      true
+    );
+
+    if (!shouldInformOnSignout) {
+      this.initiateShutdown();
       return true;
     }
 
@@ -206,29 +278,34 @@ export const EnterpriseHandler = {
       Services.prefs.setBoolPref(PROMPT_ON_SIGNOUT_PREF, result.get("checked"));
     }
 
-    await this.initiateShutdown(shouldTriggerShutdown);
+    await this.initiateShutdown();
     return true;
   },
 
-  async initiateShutdown(shouldTriggerShutdown = true) {
+  async initiateShutdown() {
     // TODO: Bug 2001029 - Assert or force-enable session restore?
-
     try {
-      await lazy.ConsoleClient.signoutUser(shouldTriggerShutdown);
+      await lazy.ConsoleClient.signoutUser();
     } catch (e) {
       console.error(`Unable to signout the user: ${e}`);
     } finally {
-      this._signoutComplete = true;
-      if (shouldTriggerShutdown) {
-        Services.startup.quit(Ci.nsIAppStartup.eForceQuit);
-      }
+      Services.startup.quit(Ci.nsIAppStartup.eForceQuit);
+    }
+  },
+
+  async _signoutOnShutdown() {
+    if (!this._signoutAuthorized) {
+      return;
+    }
+    try {
+      await lazy.ConsoleClient.signoutUser();
+    } catch (e) {
+      console.error(`EnterpriseHandler: Unable to signout the user: ${e}`);
     }
   },
 
   uninit() {
     this._signedInUser = {};
-    this._signoutComplete = false;
-    this._signoutPending = false;
     this._isInitialized = false;
   },
 };
