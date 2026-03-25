@@ -12,6 +12,7 @@ browser.jar:
   content/browser/enterprise/enterprise-urlbar-panels.inc.xhtml (content/enterprise-urlbar-panels.inc.xhtml)
   content/browser/enterprise/lockdown-mode.svg              (content/icons/lockdown-mode.svg)
   content/browser/enterprise/user-avatar.svg                (content/icons/user-avatar.svg)
+  content/browser/enterprise/access-connector.svg           (content/icons/access-connector.svg)
 
   content/builtin-themes/enterprise-light                   (theme/light/*.svg)
   content/builtin-themes/enterprise-light                   (theme/light/*.png)

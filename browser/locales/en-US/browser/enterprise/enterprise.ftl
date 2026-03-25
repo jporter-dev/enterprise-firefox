@@ -45,16 +45,15 @@ lockdown-mode-button =
 lockdown-mode-popup-header = Viewing with restrictions applied
 lockdown-mode-popup-message = You’re viewing this page with extra security protections applied by your organization. Some features may be limited to help reduce security risks.
 
+access-connector-button =
+    .aria-label = Access connector enabled
+    .tooltiptext = Access connector enabled
+access-connector-popup-header = Access connector enabled
+access-connector-popup-message = Connections to this site use additional authentication methods and are routed through a secure enterprise proxy. Page loading times may vary.
+
 blocked-by-policy-title-enterprise = Access to this site is restricted
 neterror-blocked-by-policy-page-title-enterprise = Access to this site is restricted
 neterror-blocked-by-policy-contact-admin = If you believe this is an error or need access for work purposes, please contact your IT administrator.
-
-enterprise-access-connector-heading = Access Connector
-enterprise-access-connector-info-active = This site is being accessed through a secure company connection.
-enterprise-access-connector-button =
-  .tooltiptext = Access Connector
-enterprise-access-connector-status-label-active = active
-enterprise-access-connector-status-label-inactive = inactive
 
 crashed-policy-auto-submit-title = Crash reports help us improve
 crashed-policy-auto-submit-message = Your administrator has configured { -brand-short-name } to send crash reports automatically.

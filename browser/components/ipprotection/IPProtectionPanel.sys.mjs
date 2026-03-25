@@ -2,8 +2,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { AppConstants } from "resource://gre/modules/AppConstants.sys.mjs";
-
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
@@ -435,16 +433,7 @@ export class IPProtectionPanel {
       `#${IPProtectionPanel.HEADER_BUTTON_ID}`
     );
 
-    if (AppConstants.MOZ_ENTERPRISE) {
-      const newHeaderButton =
-        this.#createAccessConnectorStatusLabel(ownerDocument);
-      if (headerButton) {
-        headerArea.replaceChild(newHeaderButton, headerButton);
-      } else {
-        headerArea.appendChild(newHeaderButton);
-      }
-      headerButton = newHeaderButton;
-    } else if (!headerButton) {
+    if (!headerButton) {
       headerButton = this.#createHeaderButton(ownerDocument);
       headerArea.appendChild(headerButton);
     }
@@ -469,21 +458,6 @@ export class IPProtectionPanel {
       `#${IPProtectionPanel.CONTENT_AREA_ID}`
     );
     contentArea.appendChild(contentEl);
-  }
-
-  #createAccessConnectorStatusLabel(ownerDocument) {
-    const statusLabel = ownerDocument.createXULElement("label");
-
-    statusLabel.id = IPProtectionPanel.HEADER_BUTTON_ID;
-    statusLabel.className = "panel-info-button";
-
-    ownerDocument.l10n.setAttributes(
-      statusLabel,
-      (this.state?.siteData?.isInclusion ?? false)
-        ? "enterprise-access-connector-status-label-active"
-        : "enterprise-access-connector-status-label-inactive"
-    );
-    return statusLabel;
   }
 
   #createHeaderButton(ownerDocument) {
