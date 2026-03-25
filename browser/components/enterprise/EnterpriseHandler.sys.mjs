@@ -14,6 +14,9 @@ ChromeUtils.defineLazyGetter(lazy, "localization", () => {
 ChromeUtils.defineESModuleGetters(lazy, {
   BrowserUtils: "resource://gre/modules/BrowserUtils.sys.mjs",
   ConsoleClient: "resource:///modules/enterprise/ConsoleClient.sys.mjs",
+  EnterpriseCommon: "resource:///modules/enterprise/EnterpriseCommon.sys.mjs",
+  IPPProxyManager:
+    "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
   isTesting: "resource:///modules/enterprise/EnterpriseCommon.sys.mjs",
   createEnterpriseLogger:
     "resource:///modules/enterprise/EnterpriseCommon.sys.mjs",
@@ -143,7 +146,7 @@ export const EnterpriseHandler = {
     }
     this.updateBadge(window);
     this.restrictEnterpriseView(window);
-    this._initLockdownModeButton(window);
+    this._initUrlbarButtons(window);
   },
 
   async initUser() {
@@ -158,6 +161,11 @@ export const EnterpriseHandler = {
         e
       );
     }
+  },
+
+  _initUrlbarButtons(window) {
+    this._initLockdownModeButton(window);
+    this._initAccessConnectorButton(window);
   },
 
   _initLockdownModeButton(window) {
@@ -181,6 +189,54 @@ export const EnterpriseHandler = {
         button.hidden = !isLockedDown;
       },
     });
+  },
+
+  _initAccessConnectorButton(window) {
+    const button = window.document.getElementById("access-connector-button");
+
+    const updateButtonState = location => {
+      let isProtected = false;
+      try {
+        isProtected =
+          lazy.IPPProxyManager.channelFilter()?.shouldInclude({
+            URI: location,
+          }) ?? false;
+      } catch (e) {
+        lazy.log.warn("Failed to check access connector state for URI: ", e);
+      }
+      button.hidden = !isProtected;
+    };
+
+    button.addEventListener("click", event => {
+      window.PanelUI.showSubView("panelUI-access-connector", button, event);
+    });
+
+    window.gBrowser.addProgressListener({
+      onLocationChange(webProgress, _request, location) {
+        if (!webProgress.isTopLevel) {
+          return;
+        }
+        updateButtonState(location);
+      },
+    });
+
+    const handleProxyStateChange = () => {
+      updateButtonState(window.gBrowser.selectedBrowser?.currentURI);
+    };
+
+    lazy.IPPProxyManager.addEventListener(
+      "IPPProxyManager:StateChanged",
+      handleProxyStateChange
+    );
+
+    window.addEventListener("unload", () => {
+      lazy.IPPProxyManager.removeEventListener(
+        "IPPProxyManager:StateChanged",
+        handleProxyStateChange
+      );
+    });
+
+    updateButtonState(window.gBrowser.selectedBrowser?.currentURI);
   },
 
   /**

@@ -13,9 +13,6 @@ import { formatRemainingBandwidth } from "chrome://browser/content/ipprotection/
 const { ERRORS } = ChromeUtils.importESModule(
   "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs"
 );
-const { AppConstants } = ChromeUtils.importESModule(
-  "resource://gre/modules/AppConstants.sys.mjs"
-);
 
 // eslint-disable-next-line import/no-unassigned-import
 import "chrome://browser/content/ipprotection/ipprotection-message-bar.mjs";
@@ -517,15 +514,17 @@ export default class IPProtectionContentElement extends MozLitElement {
       content = html`${messageBar}${this.mainContentTemplate()}`;
     }
 
+    const messageBar = this._showMessageBar ? this.messageBarTemplate() : null;
+
+    content = html`${messageBar}${this.mainContentTemplate()}`;
+
     // TODO: Conditionally render post-upgrade subview within #ipprotection-content-wrapper - Bug 1973813
     return html`
       <link
         rel="stylesheet"
         href="chrome://browser/content/ipprotection/ipprotection-content.css"
       />
-      ${content
-        ? html`<div id="ipprotection-content-wrapper">${content}</div>`
-        : null}
+      <div id="ipprotection-content-wrapper">${content}</div>
     `;
   }
 }

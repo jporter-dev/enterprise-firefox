@@ -2,8 +2,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { AppConstants } from "resource://gre/modules/AppConstants.sys.mjs";
-
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
@@ -644,13 +642,23 @@ export class IPProtectionPanel {
       return null;
     }
 
-    let headerButton = panelView.querySelector(".panel-info-button");
-    if (headerButton) {
-      if (AppConstants.MOZ_ENTERPRISE) {
-        headerButton.replaceWith(
-          this.#createAccessConnectorStatusLabel(ownerDocument)
-        );
-      }
+    let headerArea = panelView.querySelector(
+      `#${IPProtectionPanel.HEADER_AREA_ID}`
+    );
+    let headerButton = headerArea.querySelector(
+      `#${IPProtectionPanel.HEADER_BUTTON_ID}`
+    );
+
+    if (!headerButton) {
+      headerButton = this.#createHeaderButton(ownerDocument);
+      headerArea.appendChild(headerButton);
+    }
+
+    if (AppConstants.MOZ_ENTERPRISE) {
+      headerButton.replaceWith(
+        this.#createAccessConnectorStatusLabel(ownerDocument)
+      );
+    }
 
       headerButton.addEventListener("click", IPProtectionPanel.showHelpPage);
       headerButton.addEventListener(
@@ -681,6 +689,26 @@ export class IPProtectionPanel {
         : "enterprise-access-connector-status-label-inactive"
     );
     return statusLabel;
+  }
+
+  #createHeaderButton(ownerDocument) {
+    const headerButton = ownerDocument.createElement("moz-button");
+
+    headerButton.id = IPProtectionPanel.HEADER_BUTTON_ID;
+    headerButton.className = "panel-info-button";
+    headerButton.dataset.capturesFocus = "true";
+    headerButton.type = "ghost";
+    headerButton.iconSrc = "chrome://global/skin/icons/info.svg";
+    headerButton.size = "small";
+
+    ownerDocument.l10n.setAttributes(headerButton, "ipprotection-help-button");
+    headerButton.addEventListener("click", IPProtectionPanel.showHelpPage);
+    headerButton.addEventListener("keypress", e => {
+      if (e.code == "Space" || e.code == "Enter") {
+        IPProtectionPanel.showHelpPage(e);
+      }
+    });
+    return headerButton;
   }
 
   /**
