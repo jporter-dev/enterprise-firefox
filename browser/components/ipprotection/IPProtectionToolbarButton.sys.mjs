@@ -255,11 +255,6 @@ export class IPProtectionToolbarButton {
       lazy.IPPExceptionsManager.canManage(principal) &&
       lazy.IPPExceptionsManager.getPrincipalRule(principal) ===
         lazy.IPPPrincipalRules.EXCLUDED;
-    let isIncluded =
-      !!principal &&
-      lazy.IPPExceptionsManager.canManage(principal) &&
-      lazy.IPPExceptionsManager.getPrincipalRule(principal) ===
-        lazy.IPPPrincipalRules.INCLUDED;
 
     let isActive = lazy.IPPProxyManager.state === lazy.IPPProxyStates.ACTIVE;
     let isPaused = lazy.IPPProxyManager.state === lazy.IPPProxyStates.PAUSED;
@@ -295,7 +290,6 @@ export class IPProtectionToolbarButton {
       isError,
       isNetworkError,
       isExcluded,
-      isIncluded,
       isPaused,
     });
 
@@ -414,9 +408,8 @@ export class IPProtectionToolbarButton {
     let isNetworkError = status.isNetworkError;
     let isError = status.isError && !isNetworkError;
     let isExcluded = status.isExcluded && this.isExceptionsFeatureEnabled;
-    let isIncluded = status.isIncluded;
     let isPaused = status.isPaused;
-    let l10nId = "enterprise-access-connector-button2";
+    let l10nId = isError ? "ipprotection-button-error" : "ipprotection-button";
 
     toolbaritem.classList.remove(
       "ipprotection-on",
@@ -432,9 +425,9 @@ export class IPProtectionToolbarButton {
       toolbaritem.classList.add("ipprotection-error");
     } else if (isPaused) {
       toolbaritem.classList.add("ipprotection-paused");
-    } else if ((isExcluded || !isIncluded) && isActive) {
+    } else if (isExcluded && isActive) {
       toolbaritem.classList.add("ipprotection-excluded");
-    } else if (isActive && isIncluded) {
+    } else if (isActive) {
       toolbaritem.classList.add("ipprotection-on");
     }
 
