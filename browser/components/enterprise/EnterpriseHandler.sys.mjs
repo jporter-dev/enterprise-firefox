@@ -25,7 +25,7 @@ ChromeUtils.defineLazyGetter(lazy, "log", () => {
 });
 
 const PROMPT_ON_SIGNOUT_PREF = "enterprise.promptOnSignout";
-const LOGO_URL = "enterprise.logoUrl";
+const LOGO_URL = "enterprise.logo_url";
 
 export const EnterpriseHandler = {
   /**
