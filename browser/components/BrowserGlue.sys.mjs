@@ -1554,9 +1554,7 @@ BrowserGlue.prototype = {
         allowFromInactiveWorkspace: true,
       });
       if (topWindow) {
-        if (lazy.EnterpriseHandler.onSignOutSync(topWindow)) {
-          this._quitSource = "unknown";
-        } else {
+        if (!lazy.EnterpriseHandler.showSignoutPrompt(topWindow)) {
           aCancelQuit.QueryInterface(Ci.nsISupportsPRBool).data = true;
         }
         return;
