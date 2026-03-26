@@ -679,7 +679,8 @@ export var TabCrashHandler = {
 
     let dumpID = this.getDumpID(browser);
     let policyAutoSubmit =
-      !!Services.policies.getActivePolicies()?.CrashReportsAutoSubmit;
+      !!Services.policies.getActivePolicies()?.CrashReportsSubmit
+        ?.ForceAutoSubmit;
     if (!dumpID && !policyAutoSubmit) {
       return {
         hasReport: false,
