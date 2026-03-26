@@ -79,11 +79,8 @@ export const EnterpriseHandler = {
       window.PanelUI.showSubView("panelUI-lockdown-mode", button, event);
     });
 
-    window.gBrowser.addTabsProgressListener({
-      onLocationChange(browser, _webProgress, _request, location) {
-        if (browser !== window.gBrowser.selectedBrowser) {
-          return;
-        }
+    window.gBrowser.addProgressListener({
+      onLocationChange(_webProgress, _request, location) {
         let isLockedDown = false;
         try {
           isLockedDown = !Services.policies.isAllowedForURI("jit", location);
