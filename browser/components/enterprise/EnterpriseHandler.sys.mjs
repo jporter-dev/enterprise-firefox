@@ -80,7 +80,10 @@ export const EnterpriseHandler = {
     });
 
     window.gBrowser.addProgressListener({
-      onLocationChange(_webProgress, _request, location) {
+      onLocationChange(webProgress, _request, location) {
+        if (!webProgress.isTopLevel) {
+          return;
+        }
         let isLockedDown = false;
         try {
           isLockedDown = !Services.policies.isAllowedForURI("jit", location);
