@@ -245,28 +245,33 @@ export const EnterpriseHandler = {
     const logoUrl = Services.prefs.getStringPref(LOGO_URL, "");
 
     if (!logoUrl) {
-      console.error(`Skipping logo update, ${LOGO_URL} pref is not set.`);
+      console.warn(`${LOGO_URL} pref is not set, skipping logo update`);
       return;
     }
 
-    // allow https: URLs and data: URIs for common image formats with base64 encoding only.
-    const logoUrlPattern =
-      /^(https:\/\/|data:image\/(?:png|jpeg|gif|webp|svg\+xml);base64,)/;
-    if (!logoUrlPattern.test(logoUrl)) {
-      console.error(`Invalid logo URL in pref: ${logoUrl}`);
-      return;
-    }
-
+    let validLogoUrl;
     try {
-      const validLogoUrl = new URL(logoUrl).href;
+      validLogoUrl = new URL(logoUrl);
+    } catch {
+      throw new Error(`Invalid logo URL in pref: ${logoUrl}`);
+    }
 
-      const toolbarLogo = window.document.querySelector(
-        "#enterprise-company-logo__wrapper > image"
-      );
-      toolbarLogo.style.setProperty(
-        "list-style-image",
-        `url("${validLogoUrl}")`
-      );
-    } catch {}
+    if (validLogoUrl.protocol === "https:") {
+      if (validLogoUrl.origin !== lazy.ConsoleClient.consoleBaseURI.origin) {
+        throw new Error(`Logo URL must be hosted from the console: ${logoUrl}`);
+      }
+    } else if (
+      !/^data:image\/(?:png|jpeg|gif|webp|svg\+xml);base64,/.test(logoUrl)
+    ) {
+      throw new Error(`Invalid logo URL in pref: ${logoUrl}`);
+    }
+
+    const toolbarLogo = window.document.querySelector(
+      "#enterprise-company-logo__wrapper > image"
+    );
+    toolbarLogo.style.setProperty(
+      "list-style-image",
+      `url("${validLogoUrl.href}")`
+    );
   },
 };
