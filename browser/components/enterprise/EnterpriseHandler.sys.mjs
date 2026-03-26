@@ -15,7 +15,6 @@ ChromeUtils.defineESModuleGetters(lazy, {
   BrowserUtils: "resource://gre/modules/BrowserUtils.sys.mjs",
   ConsoleClient: "resource:///modules/enterprise/ConsoleClient.sys.mjs",
   EnterpriseCommon: "resource:///modules/enterprise/EnterpriseCommon.sys.mjs",
-  PREFS: "resource:///modules/enterprise/ConsoleClient.sys.mjs",
 });
 
 ChromeUtils.defineLazyGetter(lazy, "log", () => {
@@ -26,6 +25,7 @@ ChromeUtils.defineLazyGetter(lazy, "log", () => {
 });
 
 const PROMPT_ON_SIGNOUT_PREF = "enterprise.promptOnSignout";
+const LOGO_URL = "enterprise.logoUrl";
 
 export const EnterpriseHandler = {
   /**
@@ -97,12 +97,12 @@ export const EnterpriseHandler = {
   },
 
   /**
-   * Updates the user icon
+   * Updates the user icon and badge logo
    *
    * @param {Window} window chrome window
    */
   updateBadge(window) {
-    this._setLogoUrlFromPref(window);
+    this._updateLogo(window);
 
     const userIcon = window.document.querySelector("#enterprise-user-icon");
 
@@ -241,28 +241,32 @@ export const EnterpriseHandler = {
     this._isInitialized = false;
   },
 
-  _setLogoUrlFromPref(window) {
-    const prefLogoUrl = Services.prefs.getStringPref(lazy.PREFS.LOGO_URL, "");
+  _updateLogo(window) {
+    const logoUrl = Services.prefs.getStringPref(LOGO_URL, "");
 
-    if (!prefLogoUrl) {
+    if (!logoUrl) {
+      console.error(`Skipping logo update, ${LOGO_URL} pref is not set.`);
       return;
     }
 
     // allow https: URLs and data: URIs for common image formats with base64 encoding only.
     const logoUrlPattern =
       /^(https:\/\/|data:image\/(?:png|jpeg|gif|webp|svg\+xml);base64,)/;
-    if (!logoUrlPattern.test(prefLogoUrl)) {
-      console.warn(`Invalid logo URL in pref: ${prefLogoUrl}`);
+    if (!logoUrlPattern.test(logoUrl)) {
+      console.error(`Invalid logo URL in pref: ${logoUrl}`);
       return;
     }
 
     try {
-      const logoUrl = new URL(prefLogoUrl).href;
+      const validLogoUrl = new URL(logoUrl).href;
 
       const toolbarLogo = window.document.querySelector(
         "#enterprise-company-logo__wrapper > image"
       );
-      toolbarLogo.style.setProperty("list-style-image", `url("${logoUrl}")`);
+      toolbarLogo.style.setProperty(
+        "list-style-image",
+        `url("${validLogoUrl}")`
+      );
     } catch {}
   },
 };
