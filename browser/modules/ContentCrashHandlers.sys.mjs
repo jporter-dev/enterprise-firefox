@@ -531,7 +531,9 @@ export var TabCrashHandler = {
    *        The browser that has recently crashed.
    */
   sendToTabCrashedPage(browser) {
-    if (Services.policies.getActivePolicies()?.CrashReportsAutoSubmit) {
+    if (
+      Services.policies.getActivePolicies()?.CrashReportsSubmit?.ForceAutoSubmit
+    ) {
       let dumpID = this.getDumpID(browser);
       if (dumpID) {
         lazy.CrashSubmit.submit(dumpID, lazy.CrashSubmit.SUBMITTED_FROM_AUTO);

@@ -1066,9 +1066,9 @@ export var Policies = {
     },
   },
 
-  CrashReportsAutoSubmit: {
+  CrashReportsSubmit: {
     onBeforeAddons(_manager, param) {
-      if (param) {
+      if (param.ForceAutoSubmit) {
         setAndLockPref("browser.crashReports.unsubmittedCheck.enabled", true);
         setAndLockPref(
           "browser.crashReports.unsubmittedCheck.autoSubmit2",
