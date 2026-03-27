@@ -1553,11 +1553,12 @@ BrowserGlue.prototype = {
       const topWindow = lazy.BrowserWindowTracker.getTopWindow({
         allowFromInactiveWorkspace: true,
       });
+      console.warn("EnterpriseHandler: _onQuitRequest: topWindow=" + topWindow + "\n");
       if (topWindow) {
         if (!lazy.EnterpriseHandler.showSignoutPrompt(topWindow)) {
+          console.warn("EnterpriseHandler: Cancelling quitting...")
           aCancelQuit.QueryInterface(Ci.nsISupportsPRBool).data = true;
         }
-        return;
       }
     }
 

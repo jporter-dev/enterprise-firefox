@@ -107,12 +107,10 @@ export const EnterpriseHandler = {
   },
 
   registerSignoutBlocker() {
-    if (Services.felt.isFeltBrowser()) {
-      lazy.AsyncShutdown.appShutdown.addBlocker(
-        "EnterpriseHandler: signing out user on shutdown",
-        () => this._signoutOnShutdown()
-      );
-    }
+    lazy.AsyncShutdown.appShutdownConfirmed.addBlocker(
+      "EnterpriseHandler: signing out user on shutdown",
+      () => this._signoutOnShutdown()
+    );
   },
 
   /**
@@ -205,6 +203,7 @@ export const EnterpriseHandler = {
    * @returns {boolean} true if signout was authorized, false if the user cancelled.
    */
   showSignoutPrompt(window) {
+    dump("EnterpriseHandler: showSignoutPrompt called, _signoutAuthorized=" + this._signoutAuthorized + "\n");
     if (this._signoutAuthorized) {
       return true;
     }
