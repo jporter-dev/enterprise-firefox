@@ -532,6 +532,7 @@ export var TabCrashHandler = {
    */
   sendToTabCrashedPage(browser) {
     if (
+      AppConstants.MOZ_CRASHREPORTER &&
       Services.policies.getActivePolicies()?.CrashReportsSubmit?.ForceAutoSubmit
     ) {
       let dumpID = this.getDumpID(browser);
