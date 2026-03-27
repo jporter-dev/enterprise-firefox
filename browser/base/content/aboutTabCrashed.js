@@ -149,7 +149,7 @@ var AboutTabCrashed = {
     let data = message.data;
 
     if (data.hasReport || data.policyAutoSubmit) {
-      this.hasReport = true;
+      this.hasReport = !data.policyAutoSubmit;
       document.documentElement.classList.add("crashDumpAvailable");
 
       document.getElementById("sendReport").checked = data.sendReport;
