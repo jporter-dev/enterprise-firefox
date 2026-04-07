@@ -116,7 +116,6 @@ export const EnterpriseHandler = {
    */
   _skipSignoutPrompt: false,
 
-
   /**
    * Handles the enterprise state for each new browser window.
    * On first call:
@@ -320,7 +319,11 @@ export const EnterpriseHandler = {
     window.PanelUI.mainView.setAttribute("restricted-enterprise-view", true);
   },
 
-  _getSignoutPromptParams({ tabCount, warnOnSignout, warnOnCloseWithTabs } = {}) {
+  _getSignoutPromptParams({
+    tabCount,
+    warnOnSignout,
+    warnOnCloseWithTabs,
+  } = {}) {
     const hasMultipleTabs = tabCount > 1;
     const hasTabsWarning = hasMultipleTabs && warnOnCloseWithTabs;
 
@@ -345,15 +348,21 @@ export const EnterpriseHandler = {
       messageId = { id: "enterprise-close-prompt-message" };
     }
 
-    const [title, messageBody, acceptLabel, reauthNotice, checkLabel, tabsCheckLabel] =
-      lazy.localization.formatValuesSync([
-        titleId,
-        messageId,
-        { id: "enterprise-close-prompt-primary-btn-label" },
-        { id: "enterprise-close-prompt-message-reauth" },
-        { id: "enterprise-close-prompt-checkbox-label" },
-        { id: "enterprise-close-prompt-tabs-checkbox-label" },
-      ]);
+    const [
+      title,
+      messageBody,
+      acceptLabel,
+      reauthNotice,
+      checkLabel,
+      tabsCheckLabel,
+    ] = lazy.localization.formatValuesSync([
+      titleId,
+      messageId,
+      { id: "enterprise-close-prompt-primary-btn-label" },
+      { id: "enterprise-close-prompt-message-reauth" },
+      { id: "enterprise-close-prompt-checkbox-label" },
+      { id: "enterprise-close-prompt-tabs-checkbox-label" },
+    ]);
 
     const message = warnOnSignout
       ? `${messageBody}\n\n${reauthNotice}`
@@ -362,7 +371,13 @@ export const EnterpriseHandler = {
     const checkboxes = [
       { id: "warnOnSignout", label: checkLabel, checked: warnOnSignout },
       ...(hasMultipleTabs
-        ? [{ id: "warnOnCloseWithTabs", label: tabsCheckLabel, checked: warnOnCloseWithTabs }]
+        ? [
+            {
+              id: "warnOnCloseWithTabs",
+              label: tabsCheckLabel,
+              checked: warnOnCloseWithTabs,
+            },
+          ]
         : []),
     ];
 
@@ -372,7 +387,7 @@ export const EnterpriseHandler = {
       acceptLabel,
       checkboxes,
       accepted: false,
-    }
+    };
   },
 
   _handleSignoutPromptResult(accepted, checkboxes) {
@@ -445,7 +460,7 @@ export const EnterpriseHandler = {
    * @param {Window} window
    */
   async onSignOut(window) {
-    if (!await this.showSignoutPrompt(window)) {
+    if (!(await this.showSignoutPrompt(window))) {
       return;
     }
     await this.initiateShutdown();

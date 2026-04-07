@@ -41,6 +41,11 @@ enterprise-close-prompt-checkbox-label = Warn me when closing { -brand-short-nam
 enterprise-close-prompt-tabs-checkbox-label = Warn me when closing multiple tabs
 enterprise-close-prompt-primary-btn-label = Close and sign out
 
+enterprise-quit-shortcut-prompt-title = Close window and quit { -brand-short-name }?
+enterprise-quit-shortcut-prompt-title-with-tabs = Quit { -brand-short-name } or close current tab?
+enterprise-quit-shortcut-prompt-message = Quitting will sign you out of your session. You’ll need to reauthenticate through your organization’s SSO provider.
+enterprise-quit-shortcut-prompt-primary-btn-label = Quit and sign out
+
 restart-forced-title = Restart { -brand-short-name }
 restart-forced-heading = Restart to continue using { -brand-short-name }.
 restart-forced-intro = Company policy requires that { -brand-short-name } be restarted.

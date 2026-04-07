@@ -137,6 +137,13 @@ ChromeUtils.defineLazyGetter(lazy, "gBrowserBundle", function () {
   );
 });
 
+ChromeUtils.defineLazyGetter(lazy, "enterpriseLocalization", () => {
+  return new Localization(
+    ["browser/enterprise/enterprise.ftl", "branding/brand.ftl"],
+    true
+  );
+});
+
 // Seconds of idle time before the late idle tasks will be scheduled.
 const LATE_TASKS_IDLE_TIME_SEC = 20;
 // Time after we stop tracking startup crashes.
@@ -1661,7 +1668,7 @@ BrowserGlue.prototype = {
       checkboxLabelId = "tabbrowser-ask-close-tabs-checkbox";
     }
 
-    const [title, quitButtonLabel, checkboxLabel] =
+    let [title, quitButtonLabel, checkboxLabel] =
       win.gBrowser.tabLocalization.formatMessagesSync([
         titleId,
         quitButtonLabelId,
@@ -1674,6 +1681,23 @@ BrowserGlue.prototype = {
       [closeTabButtonLabel] = win.gBrowser.tabLocalization.formatMessagesSync([
         closeTabButtonLabelId,
       ]);
+    }
+
+    let message = null;
+
+    if (AppConstants.MOZ_ENTERPRISE && shouldWarnForShortcut) {
+      const titleStringId = showCloseCurrentTabOption
+        ? "enterprise-quit-shortcut-prompt-title-with-tabs"
+        : "enterprise-quit-shortcut-prompt-title";
+      const [entTitle, entMessage, entQuitButtonLabel] =
+        lazy.enterpriseLocalization.formatValuesSync([
+          titleStringId,
+          "enterprise-quit-shortcut-prompt-message",
+          "enterprise-quit-shortcut-prompt-primary-btn-label",
+        ]);
+      title = { value: entTitle };
+      message = entMessage;
+      quitButtonLabel = { value: entQuitButtonLabel };
     }
 
     let warnOnClose = { value: true };
@@ -1700,7 +1724,7 @@ BrowserGlue.prototype = {
     let buttonPressed = Services.prompt.confirmEx(
       win,
       title.value,
-      null,
+      message,
       flags,
       quitButtonLabel.value,
       null,
