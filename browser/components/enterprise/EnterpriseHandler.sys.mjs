@@ -327,26 +327,15 @@ export const EnterpriseHandler = {
     const hasMultipleTabs = tabCount > 1;
     const hasTabsWarning = hasMultipleTabs && warnOnCloseWithTabs;
 
-    let titleId, messageId;
-    if (warnOnSignout && hasTabsWarning) {
-      titleId = {
-        id: "enterprise-close-prompt-title-with-tabs",
-        args: { tabCount },
-      };
-      messageId = {
-        id: "enterprise-close-prompt-message-with-tabs",
-        args: { tabCount },
-      };
-    } else if (hasTabsWarning) {
-      titleId = {
-        id: "enterprise-close-prompt-title-tabs-only",
-        args: { tabCount },
-      };
-      messageId = { id: "enterprise-close-prompt-message-tabs-only" };
-    } else {
-      titleId = { id: "enterprise-close-prompt-title" };
-      messageId = { id: "enterprise-close-prompt-message" };
-    }
+    const effectiveTabCount = hasTabsWarning ? tabCount : 0;
+    const titleId = {
+      id: "enterprise-close-prompt-title",
+      args: { tabCount: effectiveTabCount, warnSignout: warnOnSignout.toString() },
+    };
+    const messageId = {
+      id: "enterprise-close-prompt-message",
+      args: { tabCount: effectiveTabCount, warnSignout: warnOnSignout.toString() },
+    };
 
     const [
       title,

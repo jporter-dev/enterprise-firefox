@@ -1686,12 +1686,12 @@ BrowserGlue.prototype = {
     let message = null;
 
     if (AppConstants.MOZ_ENTERPRISE && shouldWarnForShortcut) {
-      const titleStringId = showCloseCurrentTabOption
-        ? "enterprise-quit-shortcut-prompt-title-with-tabs"
-        : "enterprise-quit-shortcut-prompt-title";
       const [entTitle, entMessage, entQuitButtonLabel] =
         lazy.enterpriseLocalization.formatValuesSync([
-          titleStringId,
+          {
+            id: "enterprise-quit-shortcut-prompt-title",
+            args: { withTabs: showCloseCurrentTabOption ? "true" : "false" },
+          },
           "enterprise-quit-shortcut-prompt-message",
           "enterprise-quit-shortcut-prompt-primary-btn-label",
         ]);
