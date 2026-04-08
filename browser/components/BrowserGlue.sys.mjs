@@ -1559,17 +1559,26 @@ BrowserGlue.prototype = {
 
     // When Firefox was launched by FELT, show a signout confirmation prompt
     // instead of the standard quit dialog.
-    if (
-      AppConstants.MOZ_ENTERPRISE &&
-      Services.felt?.isFeltBrowser() &&
-      lazy.EnterpriseHandler.isSignoutPromptEnabled()
-    ) {
-      const promptWindow = lazy.BrowserWindowTracker.getTopWindow({
-        allowFromInactiveWorkspace: true,
-      });
-      if (!lazy.EnterpriseHandler.showSignoutPrompt(promptWindow)) {
+    if (AppConstants.MOZ_ENTERPRISE && Services.felt?.isFeltBrowser()) {
+      if (lazy.EnterpriseHandler._skipSignoutPrompt) {
+        lazy.EnterpriseHandler._skipSignoutPrompt = false;
+        return;
+      }
+      if (
+        Services.prefs.getBoolPref("enterprise.prompt_on_signout", true) ||
+        Services.prefs.getBoolPref("browser.tabs.warnOnClose", false)
+      ) {
         aCancelQuit.QueryInterface(Ci.nsISupportsPRBool).data = true;
-        this._quitSource = "unknown";
+        const promptWindow = lazy.BrowserWindowTracker.getTopWindow({
+          allowFromInactiveWorkspace: true,
+        });
+        lazy.EnterpriseHandler.showSignoutPrompt(promptWindow).then(proceed => {
+          if (proceed) {
+            lazy.EnterpriseHandler._skipSignoutPrompt = true;
+            Services.startup.quit(Ci.nsIAppStartup.eAttemptQuit);
+          }
+        });
+        return;
       }
     }
 

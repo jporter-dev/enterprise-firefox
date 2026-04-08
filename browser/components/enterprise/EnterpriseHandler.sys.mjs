@@ -330,11 +330,17 @@ export const EnterpriseHandler = {
     const effectiveTabCount = hasTabsWarning ? tabCount : 0;
     const titleId = {
       id: "enterprise-close-prompt-title",
-      args: { tabCount: effectiveTabCount, warnSignout: warnOnSignout.toString() },
+      args: {
+        tabCount: effectiveTabCount,
+        warnSignout: warnOnSignout.toString(),
+      },
     };
     const messageId = {
       id: "enterprise-close-prompt-message",
-      args: { tabCount: effectiveTabCount, warnSignout: warnOnSignout.toString() },
+      args: {
+        tabCount: effectiveTabCount,
+        warnSignout: warnOnSignout.toString(),
+      },
     };
 
     const [
@@ -424,15 +430,15 @@ export const EnterpriseHandler = {
 
     const hasMultipleTabs = tabCount > 1;
 
+    if (!this.isSignoutPromptEnabled() && (!hasMultipleTabs || !warnOnCloseWithTabs)) {
+      return true;
+    }
+
     const params = this._getSignoutPromptParams({
       tabCount,
       warnOnSignout,
       warnOnCloseWithTabs,
     });
-
-    if (!this.isSignoutPromptEnabled() && (!hasMultipleTabs || !warnOnCloseWithTabs)) {
-      return true;
-    }
 
     await window.gDialogBox.open(
       "chrome://browser/content/enterprise/enterprise-close-dialog.xhtml",
