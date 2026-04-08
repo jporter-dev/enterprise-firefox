@@ -106,6 +106,38 @@ class BrowserCloseWarning(FeltTests):
             """
         )
 
+    def _accept_standalone_close_dialog(self, initial_handles):
+        """Switch to and accept the standalone enterprise close dialog window,
+        then switch back to the original window.
+
+        Used for the macOS no-window case where the dialog opens outside any
+        browser window.
+        """
+        self._logger.info("Waiting for standalone enterprise close dialog window")
+
+        def get_new_handle(_):
+            current = set(self._child_driver.chrome_window_handles)
+            new = current - initial_handles
+            return new.pop() if new else None
+
+        dialog_handle = self._child_wait.until(get_new_handle)
+        self._child_driver.switch_to_window(dialog_handle)
+
+        self._child_wait.until(
+            lambda _: self._child_driver.execute_script(
+                "return !!document.getElementById('enterpriseCloseDialog')?.getButton('accept');"
+            )
+        )
+        self._logger.info("Clicking accept on standalone enterprise close dialog")
+        self._child_driver.execute_script(
+            "document.getElementById('enterpriseCloseDialog').getButton('accept').click();"
+        )
+
+        self._child_wait.until(
+            lambda _: set(self._child_driver.chrome_window_handles) == initial_handles
+        )
+        self._child_driver.switch_to_window(list(initial_handles)[0])
+
     def test_browser_window_close_default_config(self):
         """Default config: sign-out warn on, single tab - enterprise dialog shows."""
         super().run_felt_base()
@@ -188,3 +220,26 @@ class BrowserCloseWarning(FeltTests):
         self._close_browser()
 
         self.assert_child_browser_closed()
+
+    def test_browser_close_no_windows_shows_standalone_dialog(self):
+        """macOS no-window: quitting with no browser windows shows a standalone
+        enterprise dialog instead of crashing."""
+        super().run_felt_base()
+        self.connect_child_browser()
+        self.assert_user_signed_in(env=Environment.FIREFOX)
+
+        self._child_driver.set_context("chrome")
+        initial_handles = set(self._child_driver.chrome_window_handles)
+
+        # showSignoutPrompt(null) is the code path hit on macOS when the user
+        # quits with no browser windows open. Verify it opens a standalone dialog.
+        self._child_driver.execute_script(
+            """
+            const { EnterpriseHandler } = ChromeUtils.importESModule(
+                "resource:///modules/enterprise/EnterpriseHandler.sys.mjs"
+            );
+            EnterpriseHandler.showSignoutPrompt(null);
+            """
+        )
+
+        self._accept_standalone_close_dialog(initial_handles)

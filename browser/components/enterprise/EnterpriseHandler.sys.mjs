@@ -440,7 +440,17 @@ export const EnterpriseHandler = {
       warnOnCloseWithTabs,
     });
 
-    if (!window.gDialogBox.isOpen) {
+    if (!window) {
+      await new Promise(resolve => {
+        const dlg = Services.appShell.hiddenDOMWindow.openDialog(
+          "chrome://browser/content/enterprise/enterprise-close-dialog.xhtml",
+          "_blank",
+          "chrome,centerscreen",
+          params
+        );
+        dlg.addEventListener("unload", resolve, { once: true });
+      });
+    } else if (!window.gDialogBox.isOpen) {
       await window.gDialogBox.open(
         "chrome://browser/content/enterprise/enterprise-close-dialog.xhtml",
         params
