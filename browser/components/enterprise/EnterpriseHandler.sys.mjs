@@ -111,8 +111,8 @@ export const EnterpriseHandler = {
   _isInitialized: false,
 
   /**
-   * Whether to skip showing the signout prompt. This used for gating the prompt on
-   * shutdown when the signout is initiated from the enterprise panel.
+   * Set to true after the user confirms the enterprise close dialog, so that the
+   * resulting re-quit skips showing it again.
    */
   _skipSignoutPrompt: false,
 
@@ -440,10 +440,12 @@ export const EnterpriseHandler = {
       warnOnCloseWithTabs,
     });
 
-    await window.gDialogBox.open(
-      "chrome://browser/content/enterprise/enterprise-close-dialog.xhtml",
-      params
-    );
+    if (!window.gDialogBox.isOpen) {
+      await window.gDialogBox.open(
+        "chrome://browser/content/enterprise/enterprise-close-dialog.xhtml",
+        params
+      );
+    }
 
     return this._handleSignoutPromptResult(params.accepted, params.checkboxes);
   },

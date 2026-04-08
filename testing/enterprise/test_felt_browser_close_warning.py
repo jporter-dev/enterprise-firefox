@@ -158,7 +158,7 @@ class BrowserCloseWarning(FeltTests):
         self._close_browser()
         self._assert_close_dialog_content(
             expected_title="Close 2 tabs?",
-            expected_message="Closing Firefox will also sign you out.",
+            expected_message="Closing Firefox Enterprise will also sign you out.",
         )
         self._accept_close_dialog()
 
@@ -171,6 +171,19 @@ class BrowserCloseWarning(FeltTests):
         self.assert_user_signed_in(env=Environment.FIREFOX)
 
         self._set_child_bool_pref(PREF_PROMPT_ON_SIGNOUT, False)
+
+        self._close_browser()
+
+        self.assert_child_browser_closed()
+
+    def test_browser_window_close_no_warnings_multiple_tabs(self):
+        """Sign-out warn off, tabs warn off (default), multiple tabs - no dialog, quit proceeds."""
+        super().run_felt_base()
+        self.connect_child_browser()
+        self.assert_user_signed_in(env=Environment.FIREFOX)
+
+        self._set_child_bool_pref(PREF_PROMPT_ON_SIGNOUT, False)
+        self.open_tab_child("about:blank")
 
         self._close_browser()
 
