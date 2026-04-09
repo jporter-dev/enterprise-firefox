@@ -247,6 +247,7 @@ export class GuardianClient {
         subscribed: true,
         uid: 1,
         maxBytes: "1000000",
+        created_at: new Date().toISOString(),
       });
       return { status: 200, entitlement };
     }
