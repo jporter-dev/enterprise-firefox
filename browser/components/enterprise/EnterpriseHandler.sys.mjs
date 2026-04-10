@@ -150,11 +150,23 @@ export const EnterpriseHandler = {
     }
   },
 
+  /**
+   * Initializes the enterprise-related urlbar buttons.
+   *
+   * @param {Window} window chrome window
+   */
   _initUrlbarButtons(window) {
     this._initLockdownModeButton(window);
     this._initAccessConnectorButton(window);
   },
 
+  /**
+   * Initializes the lockdown mode button in the urlbar.
+   *
+   * The button will be visible based on whether the current page is in lockdown mode, as determined by the JIT policy state for the page's URI.
+   *
+   * @param {Window} window chrome window
+   */
   _initLockdownModeButton(window) {
     const button = window.document.getElementById("lockdown-mode-button");
 
@@ -178,6 +190,13 @@ export const EnterpriseHandler = {
     });
   },
 
+  /**
+   * Initializes the access connector button in the urlbar.
+   *
+   * The button will be visible based on whether the current page is protected by an access connector, as determined by the IPPProxyManager.
+   *
+   * @param {Window} window chrome window
+   */
   _initAccessConnectorButton(window) {
     const button = window.document.getElementById("access-connector-button");
 
@@ -198,14 +217,31 @@ export const EnterpriseHandler = {
       window.PanelUI.showSubView("panelUI-access-connector", button, event);
     });
 
-    window.gBrowser.addProgressListener({
-      onLocationChange(webProgress, _request, location) {
+    const handleLocationChange = {
+      onLocationChange(webProgress, _request, location, flags) {
         if (!webProgress.isTopLevel) {
           return;
         }
+
+        if (!location) {
+          return;
+        }
+
+        const isReload =
+          flags & Ci.nsIWebProgressListener.LOCATION_CHANGE_RELOAD;
+        const isSameDocument =
+          flags & Ci.nsIWebProgressListener.LOCATION_CHANGE_SAME_DOCUMENT;
+
+        // Ignore location changes that are not full navigations
+        if (isReload || isSameDocument) {
+          return;
+        }
+
         updateButtonState(location);
       },
-    });
+    };
+
+    window.gBrowser.addProgressListener(handleLocationChange);
 
     const handleProxyStateChange = () => {
       updateButtonState(window.gBrowser.selectedBrowser?.currentURI);
@@ -221,9 +257,9 @@ export const EnterpriseHandler = {
         "IPPProxyManager:StateChanged",
         handleProxyStateChange
       );
-    });
 
-    updateButtonState(window.gBrowser.selectedBrowser?.currentURI);
+      window.gBrowser.removeProgressListener(handleLocationChange);
+    });
   },
 
   /**
