@@ -146,7 +146,9 @@ def make_repackage_signing_description(config, jobs):
                     "formats": SIGNING_FORMATS[basename],
                 }
                 if basename == "target.installer.msi":
-                    artifact_entry["authenticode_comment"] = "Firefox Enterprise Installer"
+                    artifact_entry["authenticode_comment"] = (
+                        "Firefox Enterprise Installer"
+                    )
                 upstream_artifacts.append(artifact_entry)
 
         task = {
