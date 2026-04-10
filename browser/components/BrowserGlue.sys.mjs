@@ -1564,21 +1564,7 @@ BrowserGlue.prototype = {
         lazy.EnterpriseHandler._skipSignoutPrompt = false;
         return;
       }
-      const warnOnSignout = Services.prefs.getBoolPref(
-        "enterprise.prompt_on_signout",
-        true
-      );
-      const warnOnCloseWithTabs = Services.prefs.getBoolPref(
-        "browser.tabs.warnOnClose",
-        false
-      );
-      let tabCount = 0;
-      for (let win of lazy.BrowserWindowTracker.orderedWindows) {
-        if (!win.closed && win.gBrowser) {
-          tabCount += win.gBrowser.openTabs.length;
-        }
-      }
-      if (warnOnSignout || (tabCount > 1 && warnOnCloseWithTabs)) {
+      if (lazy.EnterpriseHandler.shouldShowClosePrompt()) {
         aCancelQuit.QueryInterface(Ci.nsISupportsPRBool).data = true;
         const promptWindow = lazy.BrowserWindowTracker.getTopWindow({
           allowFromInactiveWorkspace: true,

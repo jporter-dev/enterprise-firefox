@@ -401,8 +401,24 @@ export const EnterpriseHandler = {
     return true;
   },
 
-  isSignoutPromptEnabled() {
-    return Services.prefs.getBoolPref(PROMPT_ON_SIGNOUT_PREF, true);
+  _countOpenTabs() {
+    let tabCount = 0;
+    for (let win of Services.wm.getEnumerator("navigator:browser")) {
+      if (!win.closed && win.gBrowser) {
+        tabCount += win.gBrowser.openTabs.length;
+      }
+    }
+    return tabCount;
+  },
+
+  shouldShowClosePrompt() {
+    if (Services.prefs.getBoolPref(PROMPT_ON_SIGNOUT_PREF, true)) {
+      return true;
+    }
+    if (!Services.prefs.getBoolPref(WARN_ON_CLOSE_PREF, false)) {
+      return false;
+    }
+    return this._countOpenTabs() > 1;
   },
 
   /**
@@ -421,16 +437,10 @@ export const EnterpriseHandler = {
       false
     );
 
-    let tabCount = 0;
-    for (let win of Services.wm.getEnumerator("navigator:browser")) {
-      if (!win.closed && win.gBrowser) {
-        tabCount += win.gBrowser.openTabs.length;
-      }
-    }
-
+    const tabCount = this._countOpenTabs();
     const hasMultipleTabs = tabCount > 1;
 
-    if (!this.isSignoutPromptEnabled() && (!hasMultipleTabs || !warnOnCloseWithTabs)) {
+    if (!warnOnSignout && (!hasMultipleTabs || !warnOnCloseWithTabs)) {
       return true;
     }
 
