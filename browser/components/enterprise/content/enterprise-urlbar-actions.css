@@ -19,7 +19,7 @@
   }
 }
 
-.enterprise-panel-subview {
+.enterprise-urlbar-panel-subview {
   max-width: var(--size-layout-large);
 
   & .panel-subview-body {
