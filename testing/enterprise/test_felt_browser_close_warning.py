@@ -233,12 +233,14 @@ class BrowserCloseWarning(FeltTests):
 
         # showSignoutPrompt(null) is the code path hit on macOS when the user
         # quits with no browser windows open. Verify it opens a standalone dialog.
+        # Use setTimeout to defer the call so execute_script returns before the
+        # modal dialog blocks the event loop.
         self._child_driver.execute_script(
             """
             const { EnterpriseHandler } = ChromeUtils.importESModule(
                 "resource:///modules/enterprise/EnterpriseHandler.sys.mjs"
             );
-            EnterpriseHandler.showSignoutPrompt(null);
+            setTimeout(() => EnterpriseHandler.showSignoutPrompt(null), 0);
             """
         )
 

@@ -451,15 +451,14 @@ export const EnterpriseHandler = {
     });
 
     if (!window) {
-      await new Promise(resolve => {
-        const dlg = Services.appShell.hiddenDOMWindow.openDialog(
-          "chrome://browser/content/enterprise/enterprise-close-dialog.xhtml",
-          "_blank",
-          "chrome,centerscreen",
-          params
-        );
-        dlg.addEventListener("unload", resolve, { once: true });
-      });
+      params.wrappedJSObject = params;
+      Services.ww.openWindow(
+        null,
+        "chrome://browser/content/enterprise/enterprise-close-dialog.xhtml",
+        "_blank",
+        "chrome,centerscreen,modal,dialog",
+        params
+      );
     } else if (!window.gDialogBox.isOpen) {
       await window.gDialogBox.open(
         "chrome://browser/content/enterprise/enterprise-close-dialog.xhtml",

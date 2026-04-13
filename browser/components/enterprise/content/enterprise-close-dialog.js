@@ -7,7 +7,7 @@ const XUL_NS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
 let gArgs;
 
 function onLoad() {
-  gArgs = window.arguments[0];
+  gArgs = window.arguments[0].wrappedJSObject ?? window.arguments[0];
 
   document.title = gArgs.title;
   document.getElementById("infoTitle").textContent = gArgs.title;
