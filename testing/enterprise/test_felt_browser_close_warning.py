@@ -40,8 +40,10 @@ class BrowserCloseWarning(FeltTests):
         )
         self._manually_closed_child = True
 
-    def _assert_close_dialog_content(self, expected_title, expected_message):
-        self._logger.info("Waiting for the custom signout dialog to assert its content")
+    def _wait_for_close_dialog(self):
+        """Wait for the enterprise close dialog to be ready and store a
+        reference to it on the chrome window for follow-up scripts.
+        """
         self._child_wait.until(
             lambda _: self._child_driver.execute_script(
                 """
@@ -57,7 +59,9 @@ class BrowserCloseWarning(FeltTests):
                 """
             )
         )
-        content = self._child_driver.execute_script(
+
+    def _get_close_dialog_content(self):
+        return self._child_driver.execute_script(
             """
             const doc = document.getElementById('window-modal-dialog')
                 .querySelector('.dialogFrame').contentDocument;
@@ -67,6 +71,11 @@ class BrowserCloseWarning(FeltTests):
             };
             """
         )
+
+    def _assert_close_dialog_content(self, expected_title, expected_message):
+        self._logger.info("Waiting for the custom signout dialog to assert its content")
+        self._wait_for_close_dialog()
+        content = self._get_close_dialog_content()
         assert content["title"] == expected_title, (
             f"Unexpected dialog title: {content['title']!r}"
         )
@@ -76,21 +85,7 @@ class BrowserCloseWarning(FeltTests):
 
     def _accept_close_dialog(self):
         self._logger.info("Waiting for the custom signout dialog to open")
-        self._child_wait.until(
-            lambda _: self._child_driver.execute_script(
-                """
-                try {
-                    const dialog = document.getElementById('window-modal-dialog');
-                    return !!(dialog?.open && dialog.querySelector(".dialogFrame")
-                        ?.contentDocument
-                        ?.getElementById("enterpriseCloseDialog")
-                        ?.getButton('accept'));
-                } catch (e) {
-                    return false;
-                }
-                """
-            )
-        )
+        self._wait_for_close_dialog()
 
         self._logger.info(
             "Signing out the user by clicking the Signout button in the custom signout dialog"
@@ -138,11 +133,14 @@ class BrowserCloseWarning(FeltTests):
         )
         self._child_driver.switch_to_window(list(initial_handles)[0])
 
-    def test_browser_window_close_default_config(self):
-        """Default config: sign-out warn on, single tab - enterprise dialog shows."""
+    def test_browser_window_close_signout_warning_only(self):
+        """Sign-out warn on, tabs warn off, single tab - enterprise signout dialog shows."""
         super().run_felt_base()
         self.connect_child_browser()
         self.assert_user_signed_in(env=Environment.FIREFOX)
+
+        self._set_child_bool_pref(PREF_PROMPT_ON_SIGNOUT, True)
+        self._set_child_bool_pref(PREF_WARN_ON_CLOSE, False)
 
         self._close_browser()
         self._assert_close_dialog_content(
@@ -157,11 +155,12 @@ class BrowserCloseWarning(FeltTests):
         self.assert_child_browser_closed()
 
     def test_browser_window_close_with_both_warnings(self):
-        """Sign-out warn on, tabs warn on, multiple tabs open - enterprise dialog with tabs checkbox shown."""
+        """Sign-out warn on, tabs warn on, multiple tabs open - enterprise dialog with tabs count shown."""
         super().run_felt_base()
         self.connect_child_browser()
         self.assert_user_signed_in(env=Environment.FIREFOX)
 
+        self._set_child_bool_pref(PREF_PROMPT_ON_SIGNOUT, True)
         self._set_child_bool_pref(PREF_WARN_ON_CLOSE, True)
         self.open_tab_child("about:blank")
 
@@ -197,24 +196,26 @@ class BrowserCloseWarning(FeltTests):
         self.assert_child_browser_closed()
 
     def test_browser_window_close_no_warnings(self):
-        """Sign-out warn off - no dialog, quit proceeds directly."""
+        """Sign-out warn off, tabs warn off - no dialog, quit proceeds directly."""
         super().run_felt_base()
         self.connect_child_browser()
         self.assert_user_signed_in(env=Environment.FIREFOX)
 
         self._set_child_bool_pref(PREF_PROMPT_ON_SIGNOUT, False)
+        self._set_child_bool_pref(PREF_WARN_ON_CLOSE, False)
 
         self._close_browser()
 
         self.assert_child_browser_closed()
 
     def test_browser_window_close_no_warnings_multiple_tabs(self):
-        """Sign-out warn off, tabs warn off (default), multiple tabs - no dialog, quit proceeds."""
+        """Sign-out warn off, tabs warn off, multiple tabs - no dialog, quit proceeds."""
         super().run_felt_base()
         self.connect_child_browser()
         self.assert_user_signed_in(env=Environment.FIREFOX)
 
         self._set_child_bool_pref(PREF_PROMPT_ON_SIGNOUT, False)
+        self._set_child_bool_pref(PREF_WARN_ON_CLOSE, False)
         self.open_tab_child("about:blank")
 
         self._close_browser()
@@ -227,6 +228,8 @@ class BrowserCloseWarning(FeltTests):
         super().run_felt_base()
         self.connect_child_browser()
         self.assert_user_signed_in(env=Environment.FIREFOX)
+
+        self._set_child_bool_pref(PREF_PROMPT_ON_SIGNOUT, True)
 
         self._child_driver.set_context("chrome")
         initial_handles = set(self._child_driver.chrome_window_handles)

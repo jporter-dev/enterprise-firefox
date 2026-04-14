@@ -137,13 +137,6 @@ ChromeUtils.defineLazyGetter(lazy, "gBrowserBundle", function () {
   );
 });
 
-ChromeUtils.defineLazyGetter(lazy, "enterpriseLocalization", () => {
-  return new Localization(
-    ["browser/enterprise/enterprise.ftl", "branding/brand.ftl"],
-    true
-  );
-});
-
 // Seconds of idle time before the late idle tasks will be scheduled.
 const LATE_TASKS_IDLE_TIME_SEC = 20;
 // Time after we stop tracking startup crashes.
@@ -1566,6 +1559,7 @@ BrowserGlue.prototype = {
       }
       if (lazy.EnterpriseHandler.shouldShowClosePrompt()) {
         aCancelQuit.QueryInterface(Ci.nsISupportsPRBool).data = true;
+        this._quitSource = "unknown";
         const promptWindow = lazy.BrowserWindowTracker.getTopWindow({
           allowFromInactiveWorkspace: true,
         });
@@ -1692,15 +1686,19 @@ BrowserGlue.prototype = {
     let message = null;
 
     if (AppConstants.MOZ_ENTERPRISE && shouldWarnForShortcut) {
-      const [entTitle, entMessage, entQuitButtonLabel] =
-        lazy.enterpriseLocalization.formatValuesSync([
-          {
-            id: "enterprise-quit-shortcut-prompt-title",
-            args: { withTabs: showCloseCurrentTabOption ? "true" : "false" },
-          },
-          "enterprise-quit-shortcut-prompt-message",
-          "enterprise-quit-shortcut-prompt-primary-btn-label",
-        ]);
+      const l10n = new Localization(
+        ["browser/enterprise/enterprise.ftl", "branding/brand.ftl"],
+        true
+      );
+
+      const [entTitle, entMessage, entQuitButtonLabel] = l10n.formatValuesSync([
+        {
+          id: "enterprise-quit-shortcut-prompt-title",
+          args: { withTabs: showCloseCurrentTabOption ? "true" : "false" },
+        },
+        "enterprise-quit-shortcut-prompt-message",
+        "enterprise-quit-shortcut-prompt-primary-btn-label",
+      ]);
       title = { value: entTitle };
       message = entMessage;
       quitButtonLabel = { value: entQuitButtonLabel };
