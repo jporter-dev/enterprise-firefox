@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+import { AppConstants } from "resource://gre/modules/AppConstants.sys.mjs";
 import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
 
 const lazy = XPCOMUtils.declareLazy({
@@ -252,6 +253,7 @@ export class IPPChannelFilter {
     if (!this.shouldProxy(channel)) {
       // Calling this with "null" will enforce a non-proxy connection
       proxyFilter.onProxyFilterResult(defaultProxyInfo);
+      this.#notifyTopLevelDocument(channel, false);
       return;
     }
 
@@ -267,6 +269,29 @@ export class IPPChannelFilter {
     this.#observers.forEach(observer => {
       observer(channel);
     });
+    this.#notifyTopLevelDocument(channel, true);
+  }
+
+  /**
+   * Notifies observers when a top-level document channel is being
+   * processed with information about whether it is proxied or not.
+   *
+   * @param {nsIChannel} channel - The channel being processed.
+   * @param {boolean} isProxied - Whether the channel is being proxied or not.
+   */
+  #notifyTopLevelDocument(channel, isProxied) {
+    if (
+      !AppConstants.MOZ_ENTERPRISE ||
+      !channel.isDocument ||
+      channel.loadInfo?.browsingContext?.parent
+    ) {
+      return;
+    }
+    Services.obs.notifyObservers(
+      channel,
+      "ipp-channel-filter:toplevel-document",
+      isProxied ? "true" : "false"
+    );
   }
 
   /**
