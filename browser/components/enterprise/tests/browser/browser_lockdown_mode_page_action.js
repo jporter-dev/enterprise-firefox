@@ -195,6 +195,27 @@ add_task(async function test_subview_content() {
       "Subview should contain the message element"
     );
 
+    const details = subview.querySelector("#lockdown-mode-details");
+    Assert.notEqual(details, null, "Subview should contain the details element");
+
+    Assert.notEqual(
+      details.querySelector("[data-l10n-id='lockdown-mode-details-summary']"),
+      null,
+      "Details element should contain the summary element"
+    );
+
+    const list = details.querySelector("#lockdown-mode-details-list");
+    Assert.notEqual(list, null, "Details element should contain the list");
+    Assert.equal(list.children.length, 1, "List should contain one restriction item");
+
+    const jitItem = list.querySelector("[data-l10n-id='lockdown-mode-detail-jit']");
+    Assert.notEqual(jitItem, null, "List should contain the JIT restriction item");
+    Assert.equal(
+      jitItem.dataset.verified,
+      "true",
+      "JIT restriction should be verified via content process remote type"
+    );
+
     let panelHidden = BrowserTestUtils.waitForEvent(tempPanel, "popuphidden");
     PanelMultiView.hidePopup(tempPanel);
     await panelHidden;

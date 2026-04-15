@@ -44,6 +44,8 @@ lockdown-mode-button =
     .tooltiptext = Viewing with restrictions
 lockdown-mode-popup-header = Viewing with restrictions applied
 lockdown-mode-popup-message = You’re viewing this page with extra security protections applied by your organization. Some features may be limited to help reduce security risks.
+lockdown-mode-details-summary = Applied restrictions
+lockdown-mode-detail-jit = JIT compilation disabled
 
 blocked-by-policy-title-enterprise = Access to this site is restricted
 neterror-blocked-by-policy-page-title-enterprise = Access to this site is restricted

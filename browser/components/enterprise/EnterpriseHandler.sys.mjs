@@ -99,6 +99,14 @@ function validateDataUrl(url) {
   return parsedUrl;
 }
 
+const LOCKDOWN_FEATURES = [
+  {
+    id: "jit",
+    labelId: "lockdown-mode-detail-jit",
+    isVerifiedByRemoteType: remoteType => /(?:\^|&)disableJit=1/.test(remoteType),
+  },
+];
+
 export const EnterpriseHandler = {
   /**
    * @type {{name:string, email:string, pictureUrl:string} | null}
@@ -149,10 +157,32 @@ export const EnterpriseHandler = {
     }
   },
 
+  _getPolicyVerifications(browser) {
+    const uri = browser.currentURI;
+    const remoteType = browser.browsingContext?.currentRemoteType ?? "";
+    return LOCKDOWN_FEATURES.filter(
+      f => !Services.policies.isAllowedForURI(f.id, uri)
+    ).map(f => ({ ...f, verified: f.isVerifiedByRemoteType(remoteType) }));
+  },
+
+  _updateLockdownPanelDetails(window) {
+    const browser = window.gBrowser.selectedBrowser;
+    const list = window.document.getElementById("lockdown-mode-details-list");
+    list.textContent = "";
+
+    for (const { labelId, verified } of this._getPolicyVerifications(browser)) {
+      const item = window.document.createElement("li");
+      item.dataset.verified = verified;
+      window.document.l10n.setAttributes(item, labelId);
+      list.appendChild(item);
+    }
+  },
+
   _initLockdownModeButton(window) {
     const button = window.document.getElementById("lockdown-mode-button");
 
     button.addEventListener("click", event => {
+      this._updateLockdownPanelDetails(window);
       window.PanelUI.showSubView("panelUI-lockdown-mode", button, event);
     });
 
