@@ -43,9 +43,10 @@ export const SitePolicyUtils = {
       }
 
       if (
-        policies.match.matches(uri) ||
-        // This is necessary to correctly match moz-nullprincipal URIs.
-        policies.match.matchesAllWebUrls
+        (policies.match.matches(uri) ||
+          // This is necessary to correctly match moz-nullprincipal URIs.
+          policies.match.matchesAllWebUrls) &&
+        Object.keys(policies.features).length
       ) {
         return true;
       }
