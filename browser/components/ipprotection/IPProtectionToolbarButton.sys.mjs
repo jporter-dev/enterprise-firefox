@@ -388,7 +388,6 @@ export class IPProtectionToolbarButton {
       isActive: false,
       isError: false,
       isExcluded: false,
-      isIncluded: false,
       isPaused: false,
       isNetworkError: false,
     }
@@ -402,7 +401,10 @@ export class IPProtectionToolbarButton {
     let isError = status.isError && !isNetworkError;
     let isExcluded = status.isExcluded && this.isExceptionsFeatureEnabled;
     let isPaused = status.isPaused;
-    let l10nId = isError ? "ipprotection-button-error" : "ipprotection-button";
+    let l10nId =
+      isError || isNetworkError
+        ? "ipprotection-button-error"
+        : "ipprotection-button";
 
     toolbaritem.classList.remove(
       "ipprotection-on",
