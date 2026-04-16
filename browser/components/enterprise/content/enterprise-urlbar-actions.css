@@ -19,6 +19,22 @@
   }
 }
 
+.access-connector-popup-disclaimer-content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-medium);
+  padding-block-start: var(--space-small);
+}
+
+.access-connector-popup-disclaimer-icon {
+  width: var(--icon-size-small);
+  height: var(--icon-size-small);
+  flex-shrink: 0;
+  -moz-context-properties: fill;
+  fill: currentColor;
+  list-style-image: url("chrome://browser/content/enterprise/alert.svg");
+}
+
 .enterprise-urlbar-panel-subview {
   max-width: var(--size-layout-large);
 

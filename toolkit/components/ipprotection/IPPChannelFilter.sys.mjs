@@ -339,6 +339,20 @@ export class IPPChannelFilter {
   }
 
   /**
+   * Returns true if the given URI would be proxied by this filter.
+   *
+   * @param {nsIURI} uri
+   * @returns {boolean}
+   */
+  shouldProxyURI(uri) {
+    try {
+      return this.#active && this.#inclusionSet.matches(uri);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /**
    * Decides whether a channel *should* take the proxy
    *
    * @param {nsIChannel} channel

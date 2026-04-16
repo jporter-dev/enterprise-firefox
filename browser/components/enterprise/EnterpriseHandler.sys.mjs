@@ -14,6 +14,8 @@ ChromeUtils.defineLazyGetter(lazy, "localization", () => {
 ChromeUtils.defineESModuleGetters(lazy, {
   BrowserUtils: "resource://gre/modules/BrowserUtils.sys.mjs",
   ConsoleClient: "resource:///modules/enterprise/ConsoleClient.sys.mjs",
+  IPPProxyManager:
+    "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
   isTesting: "resource:///modules/enterprise/EnterpriseCommon.sys.mjs",
   createEnterpriseLogger:
     "resource:///modules/enterprise/EnterpriseCommon.sys.mjs",
@@ -196,15 +198,47 @@ export const EnterpriseHandler = {
    */
   _initAccessConnectorButton(window) {
     const button = window.document.getElementById("access-connector-button");
-    const uriProxyState = new Map();
+    // Pending state from applyFilter for the selected browser's active navigation.
+    // Keyed by browser so it survives mid-navigation tab switches.
+    const pendingState = new WeakMap();
+    let proxyStateConfirmed = false;
 
     button.addEventListener("click", event => {
+      window.document.getElementById(
+        "access-connector-popup-disclaimer"
+      ).hidden = proxyStateConfirmed;
       window.PanelUI.showSubView("panelUI-access-connector", button, event);
     });
 
+    const liveQuery = location => {
+      proxyStateConfirmed = false;
+      button.hidden = !lazy.IPPProxyManager.shouldProxyURI(location);
+    };
+
+    const updateButton = location => {
+      const browser = window.gBrowser.selectedBrowser;
+      const pending = pendingState.get(browser);
+      pendingState.delete(browser);
+      if (pending !== undefined && pending.uri === location?.spec) {
+        proxyStateConfirmed = true;
+        button.hidden = !pending.proxied;
+      } else {
+        liveQuery(location);
+      }
+    };
+
+    // applyFilter confirmation: only track the selected browser since
+    // addProgressListener only fires for it.
     const observer = (subject, _topic, isProxied) => {
       const channel = subject.QueryInterface(Ci.nsIChannel);
-      uriProxyState.set(channel.URI.spec, isProxied === "true");
+      const bc = channel.loadInfo?.browsingContext;
+      const browser = window.gBrowser.selectedBrowser;
+      if (bc && browser?.browsingContext === bc) {
+        pendingState.set(browser, {
+          uri: channel.URI.spec,
+          proxied: isProxied === "true",
+        });
+      }
     };
 
     const progressListener = {
@@ -215,10 +249,27 @@ export const EnterpriseHandler = {
         ) {
           return;
         }
-        button.hidden = !(uriProxyState.get(location?.spec) ?? false);
+        updateButton(location);
       },
     };
     window.gBrowser.addProgressListener(progressListener);
+
+    // Tab switches: addProgressListener does not fire for these, so we handle
+    // them separately with a live query.
+    const onTabSelect = () => {
+      liveQuery(window.gBrowser.selectedBrowser?.currentURI);
+    };
+    window.gBrowser.tabContainer.addEventListener("TabSelect", onTabSelect);
+
+    // Proxy state changes: any pending confirmation is now stale.
+    const onProxyStateChange = () => {
+      pendingState.delete(window.gBrowser.selectedBrowser);
+      liveQuery(window.gBrowser.selectedBrowser?.currentURI);
+    };
+    lazy.IPPProxyManager.addEventListener(
+      "IPPProxyManager:StateChanged",
+      onProxyStateChange
+    );
 
     Services.obs.addObserver(observer, "ipp-channel-filter:toplevel-document");
     window.addEventListener(
@@ -229,6 +280,14 @@ export const EnterpriseHandler = {
           "ipp-channel-filter:toplevel-document"
         );
         window.gBrowser.removeProgressListener(progressListener);
+        window.gBrowser.tabContainer.removeEventListener(
+          "TabSelect",
+          onTabSelect
+        );
+        lazy.IPPProxyManager.removeEventListener(
+          "IPPProxyManager:StateChanged",
+          onProxyStateChange
+        );
       },
       { once: true }
     );

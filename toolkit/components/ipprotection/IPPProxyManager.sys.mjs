@@ -252,6 +252,19 @@ class IPPProxyManagerSingleton extends EventTarget {
     return this.#connection;
   }
 
+  /**
+   * Returns true if the given URI is actively being proxied.
+   *
+   * @param {nsIURI} uri
+   * @returns {boolean}
+   */
+  shouldProxyURI(uri) {
+    return (
+      this.#state === IPPProxyStates.ACTIVE &&
+      (this.#connection?.shouldProxyURI(uri) ?? false)
+    );
+  }
+
   cancelChannelFilter() {
     if (this.#connection) {
       this.#connection.stop();

@@ -50,6 +50,7 @@ access-connector-button =
     .tooltiptext = Access connector enabled
 access-connector-popup-header = Access connector enabled
 access-connector-popup-message = Connections to this site use additional authentication methods and are routed through a secure enterprise proxy. Page loading times may vary.
+access-connector-popup-disclaimer = Proxy status for this page was inferred from configuration. This page may have been loaded from cache and proxy routing could not be confirmed.
 
 blocked-by-policy-title-enterprise = Access to this site is restricted
 neterror-blocked-by-policy-page-title-enterprise = Access to this site is restricted
