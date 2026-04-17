@@ -14,8 +14,8 @@ ChromeUtils.defineLazyGetter(lazy, "localization", () => {
 ChromeUtils.defineESModuleGetters(lazy, {
   BrowserUtils: "resource://gre/modules/BrowserUtils.sys.mjs",
   ConsoleClient: "resource:///modules/enterprise/ConsoleClient.sys.mjs",
-  IPPProxyManager:
-    "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
+  EnterpriseAccessConnectorButton:
+    "resource:///modules/enterprise/EnterpriseAccessConnectorButton.sys.mjs",
   isTesting: "resource:///modules/enterprise/EnterpriseCommon.sys.mjs",
   createEnterpriseLogger:
     "resource:///modules/enterprise/EnterpriseCommon.sys.mjs",
@@ -192,73 +192,10 @@ export const EnterpriseHandler = {
   /**
    * Initializes the access connector button in the urlbar.
    *
-   * The button will be visible based on whether the current page is protected by an access connector, as determined by the IPPProxyManager.
-   *
    * @param {Window} window chrome window
    */
   _initAccessConnectorButton(window) {
-    const button = window.document.getElementById("access-connector-button");
-
-    const updateButtonState = location => {
-      let isProtected = false;
-      try {
-        isProtected =
-          lazy.IPPProxyManager.channelFilter()?.shouldInclude({
-            URI: location,
-          }) ?? false;
-      } catch (e) {
-        lazy.log.warn("Failed to check access connector state for URI: ", e);
-      }
-      button.hidden = !isProtected;
-    };
-
-    button.addEventListener("click", event => {
-      window.PanelUI.showSubView("panelUI-access-connector", button, event);
-    });
-
-    const handleLocationChange = {
-      onLocationChange(webProgress, _request, location, flags) {
-        if (!webProgress.isTopLevel) {
-          return;
-        }
-
-        if (!location) {
-          return;
-        }
-
-        const isReload =
-          flags & Ci.nsIWebProgressListener.LOCATION_CHANGE_RELOAD;
-        const isSameDocument =
-          flags & Ci.nsIWebProgressListener.LOCATION_CHANGE_SAME_DOCUMENT;
-
-        // Ignore location changes that are not full navigations
-        if (isReload || isSameDocument) {
-          return;
-        }
-
-        updateButtonState(location);
-      },
-    };
-
-    window.gBrowser.addProgressListener(handleLocationChange);
-
-    const handleProxyStateChange = () => {
-      updateButtonState(window.gBrowser.selectedBrowser?.currentURI);
-    };
-
-    lazy.IPPProxyManager.addEventListener(
-      "IPPProxyManager:StateChanged",
-      handleProxyStateChange
-    );
-
-    window.addEventListener("unload", () => {
-      lazy.IPPProxyManager.removeEventListener(
-        "IPPProxyManager:StateChanged",
-        handleProxyStateChange
-      );
-
-      window.gBrowser.removeProgressListener(handleLocationChange);
-    });
+    new lazy.EnterpriseAccessConnectorButton(window);
   },
 
   /**

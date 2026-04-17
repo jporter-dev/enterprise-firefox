@@ -8,6 +8,10 @@
  * @fires IPPNetworkErrorObserver#"proxy-http-error"
  * Fired when the Proxy has recieved the Connect Request and responded with
  * a non-2xx HTTP status code
+ *
+ * @fires IPPNetworkErrorObserver#"proxy-connection-error"
+ * Fired when a main-document request fails because the proxy host itself is
+ * unreachable (e.g. DNS failure: NS_ERROR_UNKNOWN_PROXY_HOST).
  */
 export class IPPNetworkErrorObserver {
   constructor() {}

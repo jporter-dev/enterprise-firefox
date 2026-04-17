@@ -17,6 +17,14 @@
     -moz-context-properties: fill;
     fill: var(--icon-color-information);
   }
+
+  #access-connector-button.access-connector-error .urlbar-icon {
+    fill: var(--icon-color-critical);
+  }
+
+  #access-connector-button.access-connector-paused .urlbar-icon {
+    fill: var(--icon-color-warning);
+  }
 }
 
 .enterprise-urlbar-panel-subview {

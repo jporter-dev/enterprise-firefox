@@ -8,6 +8,7 @@ with Files("**"):
     BUG_COMPONENT = ("Firefox Enterprise", "Client")
 
 EXTRA_JS_MODULES.enterprise += [
+    "EnterpriseAccessConnectorButton.sys.mjs",
     "EnterpriseCommon.sys.mjs",
     "EnterpriseEndpoints.sys.mjs",
     "EnterpriseHandler.sys.mjs",
