@@ -24,7 +24,8 @@
 }
 
 #infoTitle,
-#infoBody {
+#infoBody,
+#infoReauth {
   margin-bottom: 0;
 }
 

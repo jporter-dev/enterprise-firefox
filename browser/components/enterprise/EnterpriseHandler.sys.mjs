@@ -345,7 +345,7 @@ export const EnterpriseHandler = {
 
     const [
       title,
-      messageBody,
+      message,
       acceptLabel,
       reauthNotice,
       checkLabel,
@@ -358,10 +358,6 @@ export const EnterpriseHandler = {
       { id: "enterprise-close-prompt-checkbox-label" },
       { id: "enterprise-close-prompt-tabs-checkbox-label" },
     ]);
-
-    const message = warnOnSignout
-      ? `${messageBody}\n\n${reauthNotice}`
-      : messageBody;
 
     const checkboxes = [
       { id: "warnOnSignout", label: checkLabel, checked: warnOnSignout },
@@ -379,6 +375,7 @@ export const EnterpriseHandler = {
     return {
       title,
       message,
+      reauthNotice: warnOnSignout ? reauthNotice : null,
       acceptLabel,
       checkboxes,
       accepted: false,
@@ -412,6 +409,10 @@ export const EnterpriseHandler = {
   },
 
   shouldShowClosePrompt() {
+    if (this._skipSignoutPrompt) {
+      this._skipSignoutPrompt = false;
+      return false;
+    }
     if (Services.prefs.getBoolPref(PROMPT_ON_SIGNOUT_PREF, true)) {
       return true;
     }
@@ -460,13 +461,23 @@ export const EnterpriseHandler = {
         params
       );
     } else if (!window.gDialogBox.isOpen) {
+      if (window.gDialogBox.isOpen) {
+        window.gDialogBox.replaceDialogIfOpen();
+      }
       await window.gDialogBox.open(
         "chrome://browser/content/enterprise/enterprise-close-dialog.xhtml",
         params
       );
     }
 
-    return this._handleSignoutPromptResult(params.accepted, params.checkboxes);
+    const accepted = this._handleSignoutPromptResult(
+      params.accepted,
+      params.checkboxes
+    );
+    if (accepted) {
+      this._skipSignoutPrompt = true;
+    }
+    return accepted;
   },
 
   /**

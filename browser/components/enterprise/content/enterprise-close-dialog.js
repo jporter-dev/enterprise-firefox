@@ -13,6 +13,12 @@ function onLoad() {
   document.getElementById("infoTitle").textContent = gArgs.title;
   document.getElementById("infoBody").textContent = gArgs.message;
 
+  if (gArgs.reauthNotice) {
+    const reauthEl = document.getElementById("infoReauth");
+    reauthEl.textContent = gArgs.reauthNotice;
+    reauthEl.removeAttribute("hidden");
+  }
+
   const dialog = document.getElementById("enterpriseCloseDialog");
   dialog.getButton("accept").label = gArgs.acceptLabel;
 
