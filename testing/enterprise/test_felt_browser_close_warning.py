@@ -23,7 +23,7 @@ class BrowserCloseWarning(FeltTests):
         )
         self._child_driver.set_context("content")
 
-    def _close_browser(self):
+    def _trigger_browser_closure(self):
         """Simulate a natural browser close by firing quit-application-requested,
         which BrowserGlue intercepts to show the Enterprise signout dialog.
         If the quit is not cancelled, force-quit to mirror native OS behavior."""
@@ -68,11 +68,14 @@ class BrowserCloseWarning(FeltTests):
             return {
                 title: doc.getElementById('infoTitle').textContent,
                 message: doc.getElementById('infoBody').textContent,
+                reauth: doc.getElementById('infoReauth').textContent,
             };
             """
         )
 
-    def _assert_close_dialog_content(self, expected_title, expected_message):
+    def _assert_close_dialog_content(
+        self, expected_title, expected_message, expected_reauth=None
+    ):
         self._logger.info("Waiting for the custom signout dialog to assert its content")
         self._wait_for_close_dialog()
         content = self._get_close_dialog_content()
@@ -81,6 +84,9 @@ class BrowserCloseWarning(FeltTests):
         )
         assert content["message"] == expected_message, (
             f"Unexpected dialog message: {content['message']!r}"
+        )
+        assert content["reauth"] == (expected_reauth or ""), (
+            f"Unexpected dialog reauth: {content['reauth']!r}"
         )
 
     def _accept_close_dialog(self):
@@ -127,11 +133,7 @@ class BrowserCloseWarning(FeltTests):
         self._child_driver.execute_script(
             "document.getElementById('enterpriseCloseDialog').getButton('accept').click();"
         )
-
-        self._child_wait.until(
-            lambda _: set(self._child_driver.chrome_window_handles) == initial_handles
-        )
-        self._child_driver.switch_to_window(list(initial_handles)[0])
+        self._manually_closed_child = True
 
     def test_browser_window_close_signout_warning_only(self):
         """Sign-out warn on, tabs warn off, single tab - enterprise signout dialog shows."""
@@ -142,13 +144,11 @@ class BrowserCloseWarning(FeltTests):
         self._set_child_bool_pref(PREF_PROMPT_ON_SIGNOUT, True)
         self._set_child_bool_pref(PREF_WARN_ON_CLOSE, False)
 
-        self._close_browser()
+        self._trigger_browser_closure()
         self._assert_close_dialog_content(
             expected_title="Close Firefox Enterprise?",
-            expected_message=(
-                "You’re about to sign out of Firefox Enterprise and end your session.\n\n"
-                "To use Firefox Enterprise again, you’ll need to reauthenticate through your organization’s SSO provider."
-            ),
+            expected_message="You’re about to sign out of Firefox Enterprise and end your session.",
+            expected_reauth="To use Firefox Enterprise again, you’ll need to reauthenticate through your organization’s SSO provider.",
         )
         self._accept_close_dialog()
 
@@ -164,13 +164,11 @@ class BrowserCloseWarning(FeltTests):
         self._set_child_bool_pref(PREF_WARN_ON_CLOSE, True)
         self.open_tab_child("about:blank")
 
-        self._close_browser()
+        self._trigger_browser_closure()
         self._assert_close_dialog_content(
             expected_title="Close Firefox Enterprise and 2 tabs?",
-            expected_message=(
-                "You’re about to sign out of Firefox Enterprise and close 2 tabs.\n\n"
-                "To use Firefox Enterprise again, you’ll need to reauthenticate through your organization’s SSO provider."
-            ),
+            expected_message="You’re about to sign out of Firefox Enterprise and close 2 tabs.",
+            expected_reauth="To use Firefox Enterprise again, you’ll need to reauthenticate through your organization’s SSO provider.",
         )
         self._accept_close_dialog()
 
@@ -186,7 +184,7 @@ class BrowserCloseWarning(FeltTests):
         self._set_child_bool_pref(PREF_WARN_ON_CLOSE, True)
         self.open_tab_child("about:blank")
 
-        self._close_browser()
+        self._trigger_browser_closure()
         self._assert_close_dialog_content(
             expected_title="Close 2 tabs?",
             expected_message="Closing Firefox Enterprise will also sign you out.",
@@ -204,7 +202,7 @@ class BrowserCloseWarning(FeltTests):
         self._set_child_bool_pref(PREF_PROMPT_ON_SIGNOUT, False)
         self._set_child_bool_pref(PREF_WARN_ON_CLOSE, False)
 
-        self._close_browser()
+        self._trigger_browser_closure()
 
         self.assert_child_browser_closed()
 
@@ -218,7 +216,7 @@ class BrowserCloseWarning(FeltTests):
         self._set_child_bool_pref(PREF_WARN_ON_CLOSE, False)
         self.open_tab_child("about:blank")
 
-        self._close_browser()
+        self._trigger_browser_closure()
 
         self.assert_child_browser_closed()
 
@@ -248,3 +246,5 @@ class BrowserCloseWarning(FeltTests):
         )
 
         self._accept_standalone_close_dialog(initial_handles)
+
+        self.assert_child_browser_closed()
