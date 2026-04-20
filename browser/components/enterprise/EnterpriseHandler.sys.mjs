@@ -327,21 +327,15 @@ export const EnterpriseHandler = {
     const hasMultipleTabs = tabCount > 1;
     const hasTabsWarning = hasMultipleTabs && warnOnCloseWithTabs;
 
-    const effectiveTabCount = hasTabsWarning ? tabCount : 0;
-    const titleId = {
-      id: "enterprise-close-prompt-title",
-      args: {
-        tabCount: effectiveTabCount,
-        warnSignout: warnOnSignout.toString(),
-      },
-    };
-    const messageId = {
-      id: "enterprise-close-prompt-message",
-      args: {
-        tabCount: effectiveTabCount,
-        warnSignout: warnOnSignout.toString(),
-      },
-    };
+    let titleId, messageId;
+    if (hasTabsWarning) {
+      const args = { tabCount, warnSignout: warnOnSignout.toString() };
+      titleId = { id: "enterprise-close-prompt-title-with-tabcount", args };
+      messageId = { id: "enterprise-close-prompt-message-with-tabcount", args };
+    } else {
+      titleId = { id: "enterprise-close-prompt-title" };
+      messageId = { id: "enterprise-close-prompt-message" };
+    }
 
     const [
       title,
@@ -460,7 +454,7 @@ export const EnterpriseHandler = {
         "chrome,centerscreen,modal,dialog",
         params
       );
-    } else if (!window.gDialogBox.isOpen) {
+    } else {
       if (window.gDialogBox.isOpen) {
         window.gDialogBox.replaceDialogIfOpen();
       }

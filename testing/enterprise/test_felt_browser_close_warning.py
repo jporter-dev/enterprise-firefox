@@ -23,20 +23,39 @@ class BrowserCloseWarning(FeltTests):
         )
         self._child_driver.set_context("content")
 
-    def _trigger_browser_closure(self):
+    def _trigger_browser_closure(self, close_all_windows=False):
         """Simulate a natural browser close by firing quit-application-requested,
         which BrowserGlue intercepts to show the Enterprise signout dialog.
-        If the quit is not cancelled, force-quit to mirror native OS behavior."""
+        If the quit is not cancelled, force-quit to mirror native OS behavior.
+
+        If close_all_windows is True, all browser windows are closed first so
+        that BrowserWindowTracker.getTopWindow() returns null, which causes
+        BrowserGlue to open a standalone dialog (the macOS no-window path).
+        """
         self._child_driver.set_context("chrome")
         self._child_driver.execute_script(
             """
-            let cancelQuit = Cc["@mozilla.org/supports-PRBool;1"]
-                .createInstance(Ci.nsISupportsPRBool);
-            Services.obs.notifyObservers(cancelQuit, "quit-application-requested", null);
-            if (!cancelQuit.data) {
-                Services.startup.quit(Ci.nsIAppStartup.eForceQuit);
+            const closeWindows = arguments[0];
+            function triggerQuit() {
+                let cancelQuit = Cc["@mozilla.org/supports-PRBool;1"]
+                    .createInstance(Ci.nsISupportsPRBool);
+                Services.obs.notifyObservers(cancelQuit, "quit-application-requested", null);
+                if (!cancelQuit.data) {
+                    Services.startup.quit(Ci.nsIAppStartup.eForceQuit);
+                }
             }
-            """
+            if (closeWindows) {
+                const wins = [...Services.wm.getEnumerator('navigator:browser')];
+                const closed = wins.map(win =>
+                    new Promise(r => win.addEventListener('unload', r, { once: true }))
+                );
+                wins.forEach(win => win.close());
+                Promise.all(closed).then(triggerQuit);
+            } else {
+                triggerQuit();
+            }
+            """,
+            [close_all_windows],
         )
         self._manually_closed_child = True
 
@@ -231,20 +250,6 @@ class BrowserCloseWarning(FeltTests):
 
         self._child_driver.set_context("chrome")
         initial_handles = set(self._child_driver.chrome_window_handles)
-
-        # showSignoutPrompt(null) is the code path hit on macOS when the user
-        # quits with no browser windows open. Verify it opens a standalone dialog.
-        # Use setTimeout to defer the call so execute_script returns before the
-        # modal dialog blocks the event loop.
-        self._child_driver.execute_script(
-            """
-            const { EnterpriseHandler } = ChromeUtils.importESModule(
-                "resource:///modules/enterprise/EnterpriseHandler.sys.mjs"
-            );
-            setTimeout(() => EnterpriseHandler.showSignoutPrompt(null), 0);
-            """
-        )
-
+        self._trigger_browser_closure(close_all_windows=True)
         self._accept_standalone_close_dialog(initial_handles)
-
         self.assert_child_browser_closed()
