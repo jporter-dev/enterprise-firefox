@@ -117,6 +117,12 @@ export const EnterpriseHandler = {
   _skipSignoutPrompt: false,
 
   /**
+   * Cached count of open tabs used when showing the close prompt to avoid recounting
+   * tabs multiple times during the prompt flow. Resets to null after use.
+   */
+  _tabCount: null,
+
+  /**
    * Handles the enterprise state for each new browser window.
    * On first call:
    *    - Make a request to the console to retrieve the user information of the signed in user.
@@ -407,13 +413,13 @@ export const EnterpriseHandler = {
       this._skipSignoutPrompt = false;
       return false;
     }
-    if (Services.prefs.getBoolPref(PROMPT_ON_SIGNOUT_PREF, true)) {
-      return true;
-    }
-    if (!Services.prefs.getBoolPref(WARN_ON_CLOSE_PREF, false)) {
+    const warnOnSignout = Services.prefs.getBoolPref(PROMPT_ON_SIGNOUT_PREF, true);
+    const warnOnCloseWithTabs = Services.prefs.getBoolPref(WARN_ON_CLOSE_PREF, false);
+    if (!warnOnSignout && !warnOnCloseWithTabs) {
       return false;
     }
-    return this._countOpenTabs() > 1;
+    this._tabCount = this._countOpenTabs();
+    return warnOnSignout || this._tabCount > 1;
   },
 
   /**
@@ -432,18 +438,19 @@ export const EnterpriseHandler = {
       false
     );
 
-    const tabCount = this._countOpenTabs();
-    const hasMultipleTabs = tabCount > 1;
+    this._tabCount ??= this._countOpenTabs();
 
-    if (!warnOnSignout && (!hasMultipleTabs || !warnOnCloseWithTabs)) {
+    if (!warnOnSignout && (this._tabCount <= 1 || !warnOnCloseWithTabs)) {
+      this._tabCount = null;
       return true;
     }
 
     const params = this._getSignoutPromptParams({
-      tabCount,
+      tabCount: this._tabCount,
       warnOnSignout,
       warnOnCloseWithTabs,
     });
+    this._tabCount = null;
 
     if (!window) {
       params.wrappedJSObject = params;

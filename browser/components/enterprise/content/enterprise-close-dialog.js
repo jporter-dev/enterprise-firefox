@@ -4,10 +4,8 @@
 
 const XUL_NS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
 
-let gArgs;
-
 function onLoad() {
-  gArgs = window.arguments[0].wrappedJSObject ?? window.arguments[0];
+  const gArgs = window.arguments[0].wrappedJSObject ?? window.arguments[0];
 
   document.title = gArgs.title;
   document.getElementById("infoTitle").textContent = gArgs.title;
@@ -23,18 +21,18 @@ function onLoad() {
   dialog.getButton("accept").label = gArgs.acceptLabel;
 
   if (gArgs.checkboxes.length) {
-    createCheckboxes();
+    createCheckboxes(gArgs.checkboxes);
   }
 
-  document.addEventListener("dialogaccept", onAccept, { once: true });
-  document.addEventListener("dialogcancel", onCancel, { once: true });
+  document.addEventListener("dialogaccept", () => onAccept(gArgs), { once: true });
+  document.addEventListener("dialogcancel", () => onCancel(gArgs), { once: true });
 
   window.sizeToContent();
 }
 
-function createCheckboxes() {
+function createCheckboxes(checkboxes) {
   const list = document.getElementById("checkboxesList");
-  for (const { id, label, checked } of gArgs.checkboxes) {
+  for (const { id, label, checked } of checkboxes) {
     const checkbox = document.createElementNS(XUL_NS, "checkbox");
     checkbox.id = id;
     checkbox.setAttribute("label", label);
@@ -46,14 +44,14 @@ function createCheckboxes() {
   document.getElementById("checkboxesRow").removeAttribute("hidden");
 }
 
-function onAccept() {
+function onAccept(gArgs) {
   gArgs.accepted = true;
   for (const checkboxArgs of gArgs.checkboxes) {
     checkboxArgs.checked = document.getElementById(checkboxArgs.id).checked;
   }
 }
 
-function onCancel() {
+function onCancel(gArgs) {
   gArgs.accepted = false;
 }
 

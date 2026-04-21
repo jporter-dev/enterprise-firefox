@@ -125,6 +125,15 @@ if (AppConstants.MOZ_CRASHREPORTER) {
   });
 }
 
+if (AppConstants.MOZ_ENTERPRISE) {
+  ChromeUtils.defineLazyGetter(lazy, "localization", () => {
+    return new Localization(
+      ["browser/enterprise/enterprise.ftl", "branding/brand.ftl"],
+      true
+    );
+  });
+}
+
 ChromeUtils.defineLazyGetter(lazy, "gBrandBundle", function () {
   return Services.strings.createBundle(
     "chrome://branding/locale/brand.properties"
@@ -1559,11 +1568,16 @@ BrowserGlue.prototype = {
         const promptWindow = lazy.BrowserWindowTracker.getTopWindow({
           allowFromInactiveWorkspace: true,
         });
-        lazy.EnterpriseHandler.showSignoutPrompt(promptWindow).then(proceed => {
-          if (proceed) {
-            Services.startup.quit(Ci.nsIAppStartup.eAttemptQuit);
-          }
-        });
+        lazy.EnterpriseHandler.showSignoutPrompt(promptWindow)
+          .then(proceed => {
+            if (proceed) {
+              Services.startup.quit(Ci.nsIAppStartup.eAttemptQuit);
+            }
+          })
+          .catch(e => {
+            console.error("Enterprise signout prompt failed, quitting:", e);
+            Services.startup.quit(Ci.nsIAppStartup.eForceQuit);
+          });
         return;
       }
     }
@@ -1681,19 +1695,15 @@ BrowserGlue.prototype = {
     let message = null;
 
     if (AppConstants.MOZ_ENTERPRISE && shouldWarnForShortcut) {
-      const l10n = new Localization(
-        ["browser/enterprise/enterprise.ftl", "branding/brand.ftl"],
-        true
-      );
-
-      const [entTitle, entMessage, entQuitButtonLabel] = l10n.formatValuesSync([
-        {
-          id: "enterprise-quit-shortcut-prompt-title",
-          args: { withTabs: showCloseCurrentTabOption ? "true" : "false" },
-        },
-        "enterprise-quit-shortcut-prompt-message",
-        "enterprise-quit-shortcut-prompt-primary-btn-label",
-      ]);
+      const [entTitle, entMessage, entQuitButtonLabel] =
+        lazy.localization.formatValuesSync([
+          {
+            id: "enterprise-quit-shortcut-prompt-title",
+            args: { withTabs: showCloseCurrentTabOption ? "true" : "false" },
+          },
+          "enterprise-quit-shortcut-prompt-message",
+          "enterprise-quit-shortcut-prompt-primary-btn-label",
+        ]);
       title = { value: entTitle };
       message = entMessage;
       quitButtonLabel = { value: entQuitButtonLabel };
