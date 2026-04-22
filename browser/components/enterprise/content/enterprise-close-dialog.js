@@ -4,6 +4,9 @@
 
 const XUL_NS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
 
+/**
+ * Initializes the enterprise close dialog, called on DOMContentLoaded.
+ */
 function onLoad() {
   const gArgs = window.arguments[0].wrappedJSObject ?? window.arguments[0];
 
@@ -24,12 +27,21 @@ function onLoad() {
     createCheckboxes(gArgs.checkboxes);
   }
 
-  document.addEventListener("dialogaccept", () => onAccept(gArgs), { once: true });
-  document.addEventListener("dialogcancel", () => onCancel(gArgs), { once: true });
+  document.addEventListener("dialogaccept", () => onAccept(gArgs), {
+    once: true,
+  });
+  document.addEventListener("dialogcancel", () => onCancel(gArgs), {
+    once: true,
+  });
 
   window.sizeToContent();
 }
 
+/**
+ * Dynamically creates checkboxes in the enterprise close dialog based on provided configurations.
+ *
+ * @param {Array<{id: string, label: string, checked: boolean}>} checkboxes - An array of checkbox configurations, each containing an id, label, and checked state.
+ */
 function createCheckboxes(checkboxes) {
   const list = document.getElementById("checkboxesList");
   for (const { id, label, checked } of checkboxes) {
@@ -44,6 +56,11 @@ function createCheckboxes(checkboxes) {
   document.getElementById("checkboxesRow").removeAttribute("hidden");
 }
 
+/**
+ * Handles the accept action for the enterprise close dialog.
+ *
+ * @param {object} gArgs - The arguments object passed to the dialog.
+ */
 function onAccept(gArgs) {
   gArgs.accepted = true;
   for (const checkboxArgs of gArgs.checkboxes) {
@@ -51,6 +68,11 @@ function onAccept(gArgs) {
   }
 }
 
+/**
+ * Handles the cancel action for the enterprise close dialog.
+ *
+ * @param {object} gArgs - The arguments object passed to the dialog.
+ */
 function onCancel(gArgs) {
   gArgs.accepted = false;
 }

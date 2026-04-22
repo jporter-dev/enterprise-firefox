@@ -325,6 +325,15 @@ export const EnterpriseHandler = {
     window.PanelUI.mainView.setAttribute("restricted-enterprise-view", true);
   },
 
+  /**
+   * Generates the parameters for the signout/close prompt based on the current state and preferences.
+   *
+   * @param {object} options
+   * @param {number} options.tabCount - The number of open tabs across all windows.
+   * @param {boolean} options.warnOnSignout - Whether to warn on signout.
+   * @param {boolean} options.warnOnCloseWithTabs - Whether to warn on close when multiple tabs are open.
+   * @returns {object} The parameters for the signout/close prompt, including title, message, checkbox states, and more.
+   */
   _getSignoutPromptParams({
     tabCount,
     warnOnSignout,
@@ -382,6 +391,13 @@ export const EnterpriseHandler = {
     };
   },
 
+  /**
+   * Handles the result of the signout/close prompt, updating preferences based on checkbox states if accepted.
+   *
+   * @param {boolean} accepted - Whether the user accepted the prompt.
+   * @param {Array<{id: string, checked: boolean}>} checkboxes - The state of the checkboxes in the prompt.
+   * @returns {boolean} True if the action should proceed (accepted), false if cancelled.
+   */
   _handleSignoutPromptResult(accepted, checkboxes) {
     if (!accepted) {
       return false;
@@ -398,6 +414,11 @@ export const EnterpriseHandler = {
     return true;
   },
 
+  /**
+   * Counts the total number of open tabs across all browser windows.
+   *
+   * @returns {number} The total count of open tabs.
+   */
   _countOpenTabs() {
     let tabCount = 0;
     for (let win of Services.wm.getEnumerator("navigator:browser")) {
@@ -408,13 +429,24 @@ export const EnterpriseHandler = {
     return tabCount;
   },
 
+  /**
+   * Determines whether the signout/close prompt should be shown based on preferences and current state.
+   *
+   * @returns {boolean} True if the prompt should be shown, false otherwise.
+   */
   shouldShowClosePrompt() {
     if (this._skipSignoutPrompt) {
       this._skipSignoutPrompt = false;
       return false;
     }
-    const warnOnSignout = Services.prefs.getBoolPref(PROMPT_ON_SIGNOUT_PREF, true);
-    const warnOnCloseWithTabs = Services.prefs.getBoolPref(WARN_ON_CLOSE_PREF, false);
+    const warnOnSignout = Services.prefs.getBoolPref(
+      PROMPT_ON_SIGNOUT_PREF,
+      true
+    );
+    const warnOnCloseWithTabs = Services.prefs.getBoolPref(
+      WARN_ON_CLOSE_PREF,
+      false
+    );
     if (!warnOnSignout && !warnOnCloseWithTabs) {
       return false;
     }
