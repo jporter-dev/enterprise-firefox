@@ -80,7 +80,7 @@ access-connector-button =
     .aria-label = Access connector enabled
     .tooltiptext = Access connector enabled
 access-connector-popup-header = Access connector enabled
-access-connector-popup-message = Connections to this site use additional authentication methods and are routed through a secure enterprise proxy. Page loading times may vary.
+access-connector-popup-message = Connections to this site use additional authentication methods and are routed through a secure enterprise proxy.
 
 blocked-by-policy-title-enterprise = Access to this site is restricted
 neterror-blocked-by-policy-page-title-enterprise = Access to this site is restricted
