@@ -17,6 +17,7 @@ PREF_WARN_ON_CLOSE = "browser.tabs.warnOnClose"
 
 class BrowserCloseWarning(FeltTests):
     def _set_child_bool_pref(self, pref_name, value):
+        """Set a boolean preference on the child browser via chrome context."""
         self._child_driver.set_context("chrome")
         self._child_driver.execute_script(
             f"Services.prefs.setBoolPref('{pref_name}', {'true' if value else 'false'});"
@@ -26,22 +27,25 @@ class BrowserCloseWarning(FeltTests):
     def _trigger_browser_closure(self, close_all_windows=False):
         """Simulate a natural browser close by firing quit-application-requested,
         which BrowserGlue intercepts to show the Enterprise signout dialog.
-        If the quit is not cancelled, force-quit to mirror native OS behavior.
 
         If close_all_windows is True, all browser windows are closed first so
         that BrowserWindowTracker.getTopWindow() returns null, which causes
         BrowserGlue to open a standalone dialog (the macOS no-window path).
         """
         self._child_driver.set_context("chrome")
-        self._child_driver.execute_script(
+        self._manually_closed_child = True
+        self._child_driver.execute_async_script(
             """
-            const closeWindows = arguments[0];
-            function triggerQuit() {
+            const [closeWindows, resolve] = arguments;
+            function triggerQuit(shouldResolve) {
                 let cancelQuit = Cc["@mozilla.org/supports-PRBool;1"]
                     .createInstance(Ci.nsISupportsPRBool);
                 Services.obs.notifyObservers(cancelQuit, "quit-application-requested", null);
                 if (!cancelQuit.data) {
-                    Services.startup.quit(Ci.nsIAppStartup.eForceQuit);
+                    if (shouldResolve) resolve();
+                    Services.startup.quit(Ci.nsIAppStartup.eAttemptQuit);
+                } else if (shouldResolve) {
+                    resolve();
                 }
             }
             if (closeWindows) {
@@ -50,14 +54,16 @@ class BrowserCloseWarning(FeltTests):
                     new Promise(r => win.addEventListener('unload', r, { once: true }))
                 );
                 wins.forEach(win => win.close());
-                Promise.all(closed).then(triggerQuit);
+                // callback() must fire before the document unloads, so it is
+                // called here rather than inside triggerQuit.
+                Promise.all(closed).then(() => triggerQuit(false));
+                resolve();
             } else {
-                triggerQuit();
+                triggerQuit(true);
             }
             """,
             [close_all_windows],
         )
-        self._manually_closed_child = True
 
     def _wait_for_close_dialog(self):
         """Wait for the enterprise close dialog to be ready and store a
@@ -80,6 +86,7 @@ class BrowserCloseWarning(FeltTests):
         )
 
     def _get_close_dialog_content(self):
+        """Return the title, message, and reauth text from the open close dialog."""
         return self._child_driver.execute_script(
             """
             const doc = document.getElementById('window-modal-dialog')
@@ -95,6 +102,7 @@ class BrowserCloseWarning(FeltTests):
     def _assert_close_dialog_content(
         self, expected_title, expected_message, expected_reauth=None
     ):
+        """Wait for the close dialog and assert its title, message, and optional reauth text."""
         self._logger.info("Waiting for the custom signout dialog to assert its content")
         self._wait_for_close_dialog()
         content = self._get_close_dialog_content()
@@ -109,6 +117,7 @@ class BrowserCloseWarning(FeltTests):
         )
 
     def _accept_close_dialog(self):
+        """Wait for the in-window close dialog and click its accept button."""
         self._logger.info("Waiting for the custom signout dialog to open")
         self._wait_for_close_dialog()
 
@@ -148,11 +157,24 @@ class BrowserCloseWarning(FeltTests):
                 "return !!document.getElementById('enterpriseCloseDialog')?.getButton('accept');"
             )
         )
+        self._manually_closed_child = True
         self._logger.info("Clicking accept on standalone enterprise close dialog")
         self._child_driver.execute_script(
             "document.getElementById('enterpriseCloseDialog').getButton('accept').click();"
         )
-        self._manually_closed_child = True
+
+    def _wait_for_child_browser_closed(self):
+        """Poll until the child browser has fully closed."""
+        self._logger.info("Waiting for child browser to close.")
+
+        def is_closed(_):
+            try:
+                super(BrowserCloseWarning, self).assert_child_browser_closed()
+                return True
+            except AssertionError:
+                return False
+
+        self._child_wait.until(is_closed)
 
     def test_browser_window_close_signout_warning_only(self):
         """Sign-out warn on, tabs warn off, single tab - enterprise signout dialog shows."""
@@ -171,6 +193,7 @@ class BrowserCloseWarning(FeltTests):
         )
         self._accept_close_dialog()
 
+        self._wait_for_child_browser_closed()
         self.assert_child_browser_closed()
 
     def test_browser_window_close_with_both_warnings(self):
@@ -191,6 +214,7 @@ class BrowserCloseWarning(FeltTests):
         )
         self._accept_close_dialog()
 
+        self._wait_for_child_browser_closed()
         self.assert_child_browser_closed()
 
     def test_browser_window_close_tabs_warning_only(self):
@@ -210,6 +234,7 @@ class BrowserCloseWarning(FeltTests):
         )
         self._accept_close_dialog()
 
+        self._wait_for_child_browser_closed()
         self.assert_child_browser_closed()
 
     def test_browser_window_close_no_warnings(self):
@@ -223,6 +248,7 @@ class BrowserCloseWarning(FeltTests):
 
         self._trigger_browser_closure()
 
+        self._wait_for_child_browser_closed()
         self.assert_child_browser_closed()
 
     def test_browser_window_close_no_warnings_multiple_tabs(self):
@@ -237,6 +263,7 @@ class BrowserCloseWarning(FeltTests):
 
         self._trigger_browser_closure()
 
+        self._wait_for_child_browser_closed()
         self.assert_child_browser_closed()
 
     def test_browser_close_no_windows_shows_standalone_dialog(self):
@@ -252,4 +279,5 @@ class BrowserCloseWarning(FeltTests):
         initial_handles = set(self._child_driver.chrome_window_handles)
         self._trigger_browser_closure(close_all_windows=True)
         self._accept_standalone_close_dialog(initial_handles)
+        self._wait_for_child_browser_closed()
         self.assert_child_browser_closed()
