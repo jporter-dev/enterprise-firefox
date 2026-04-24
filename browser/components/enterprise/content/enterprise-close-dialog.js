@@ -3,13 +3,12 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 const XUL_NS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
+const gArgs = window.arguments[0].wrappedJSObject ?? window.arguments[0];
 
 /**
  * Initializes the enterprise close dialog, called on DOMContentLoaded.
  */
 function onLoad() {
-  const gArgs = window.arguments[0].wrappedJSObject ?? window.arguments[0];
-
   document.title = gArgs.title;
   document.getElementById("infoTitle").textContent = gArgs.title;
   document.getElementById("infoBody").textContent = gArgs.message;
@@ -27,10 +26,10 @@ function onLoad() {
     createCheckboxes(gArgs.checkboxes);
   }
 
-  document.addEventListener("dialogaccept", () => onAccept(gArgs), {
+  document.addEventListener("dialogaccept", onAccept, {
     once: true,
   });
-  document.addEventListener("dialogcancel", () => onCancel(gArgs), {
+  document.addEventListener("dialogcancel", onCancel, {
     once: true,
   });
 
@@ -58,10 +57,8 @@ function createCheckboxes(checkboxes) {
 
 /**
  * Handles the accept action for the enterprise close dialog.
- *
- * @param {object} gArgs - The arguments object passed to the dialog.
  */
-function onAccept(gArgs) {
+function onAccept() {
   gArgs.accepted = true;
   for (const checkboxArgs of gArgs.checkboxes) {
     checkboxArgs.checked = document.getElementById(checkboxArgs.id).checked;
@@ -70,10 +67,8 @@ function onAccept(gArgs) {
 
 /**
  * Handles the cancel action for the enterprise close dialog.
- *
- * @param {object} gArgs - The arguments object passed to the dialog.
  */
-function onCancel(gArgs) {
+function onCancel() {
   gArgs.accepted = false;
 }
 
