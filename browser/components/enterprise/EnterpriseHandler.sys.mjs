@@ -332,9 +332,9 @@ export const EnterpriseHandler = {
    * @param {number} options.tabCount - The number of open tabs across all windows.
    * @param {boolean} options.warnOnSignout - Whether to warn on signout.
    * @param {boolean} options.warnOnCloseWithTabs - Whether to warn on close when multiple tabs are open.
-   * @returns {object} The parameters for the signout/close prompt, including title, message, checkbox states, and more.
+   * @returns {Promise<object>} The parameters for the signout/close prompt, including title, message, checkbox states, and more.
    */
-  _getSignoutPromptParams({
+  async _getSignoutPromptParams({
     tabCount,
     warnOnSignout,
     warnOnCloseWithTabs,
@@ -359,7 +359,7 @@ export const EnterpriseHandler = {
       reauthNotice,
       checkLabel,
       tabsCheckLabel,
-    ] = lazy.localization.formatValuesSync([
+    ] = await lazy.localization.formatValues([
       titleId,
       messageId,
       { id: "enterprise-close-prompt-primary-btn-label" },
@@ -477,7 +477,7 @@ export const EnterpriseHandler = {
       return true;
     }
 
-    const params = this._getSignoutPromptParams({
+    const params = await this._getSignoutPromptParams({
       tabCount: this._tabCount,
       warnOnSignout,
       warnOnCloseWithTabs,
