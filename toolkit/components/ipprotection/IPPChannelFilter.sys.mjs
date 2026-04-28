@@ -423,6 +423,10 @@ export class IPPChannelFilter {
       0 /* unsigned long aPosition */
     );
     this.#active = true;
+    this.#inclusionPrefObserver = () => {
+      this.#inclusionSet = IPPChannelFilter.getInclusionList();
+    };
+    Services.prefs.addObserver(INCLUSION_PREF, this.#inclusionPrefObserver);
   }
 
   /**
@@ -431,6 +435,14 @@ export class IPPChannelFilter {
   stop() {
     if (!this.#active) {
       return;
+    }
+
+    if (this.#inclusionPrefObserver) {
+      Services.prefs.removeObserver(
+        INCLUSION_PREF,
+        this.#inclusionPrefObserver
+      );
+      this.#inclusionPrefObserver = null;
     }
 
     lazy.ProxyService.unregisterChannelFilter(this);
@@ -546,6 +558,7 @@ export class IPPChannelFilter {
   #excludedOrigins = new Set();
   #pendingChannels = [];
   #inclusionSet = new MatchPatternSet([], MATCH_PATTERN_OPTIONS);
+  #inclusionPrefObserver = null;
   #server = null;
 
   static makeIsolationKey() {
