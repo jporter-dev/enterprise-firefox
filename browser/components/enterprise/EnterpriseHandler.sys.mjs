@@ -344,9 +344,15 @@ export const EnterpriseHandler = {
 
     let titleId, messageId;
     if (hasTabsWarning) {
-      const args = { tabCount, warnSignout: warnOnSignout.toString() };
-      titleId = { id: "enterprise-close-prompt-title-with-tabcount", args };
-      messageId = { id: "enterprise-close-prompt-message-with-tabcount", args };
+      const warnSuffix = warnOnSignout ? "-warn" : "";
+      titleId = {
+        id: `enterprise-close-prompt-title-with-tabcount${warnSuffix}`,
+        args: { tabCount },
+      };
+      messageId = {
+        id: `enterprise-close-prompt-message-with-tabcount${warnSuffix}`,
+        args: warnOnSignout ? { tabCount } : {},
+      };
     } else {
       titleId = { id: "enterprise-close-prompt-title" };
       messageId = { id: "enterprise-close-prompt-message" };
