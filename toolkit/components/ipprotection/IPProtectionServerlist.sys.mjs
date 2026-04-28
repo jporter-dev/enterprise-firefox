@@ -391,6 +391,7 @@ export class RemoteSettingsServerlist extends IPProtectionServerlistBase {
  */
 export class PrefServerList extends IPProtectionServerlistBase {
   #observer = null;
+  #previousList = null;
 
   constructor() {
     super();
@@ -410,19 +411,21 @@ export class PrefServerList extends IPProtectionServerlistBase {
   }
 
   async initOnStartupCompleted() {
-    Services.prefs.addObserver(
-      IPProtectionServerlist.PREF_NAME,
-      this.#observer
-    );
+    Services.prefs.addObserver(PrefServerList.PREF_NAME, this.#observer);
   }
 
   uninit() {
-    Services.prefs.removeObserver(
-      IPProtectionServerlist.PREF_NAME,
-      this.#observer
-    );
+    Services.prefs.removeObserver(PrefServerList.PREF_NAME, this.#observer);
   }
+
   maybeFetchList(_forceUpdate = false) {
+    const newList = Services.prefs.getStringPref(PrefServerList.PREF_NAME, "");
+
+    // If the list hasn't changed, we don't need to fetch it again.
+    if (!_forceUpdate && newList === this.#previousList) {
+      return Promise.resolve();
+    }
+    this.#previousList = newList;
     this.__list = IPProtectionServerlistBase.dataToList(
       PrefServerList.prefValue
     );

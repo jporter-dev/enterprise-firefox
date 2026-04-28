@@ -54,7 +54,20 @@ class IPPAutoStartSingleton {
       false
     );
 
-    this.#handleListChanged = () => this.init();
+    this.#handleListChanged = async () => {
+      if (!lazy.IPProtectionServerlist.hasList) {
+        return;
+      }
+      if (lazy.IPPProxyManager.state === lazy.IPPProxyStates.ACTIVE) {
+        await lazy.IPPProxyManager.stop(false);
+        await lazy.IPPProxyManager.start(
+          false,
+          PrivateBrowsingUtils.permanentPrivateBrowsing
+        );
+        return;
+      }
+      this.init();
+    };
     lazy.IPProtectionServerlist.addEventListener(
       "IPProtectionServerlist:ListChanged",
       this.#handleListChanged
