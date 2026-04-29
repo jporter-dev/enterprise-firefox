@@ -54,16 +54,15 @@ class IPPAutoStartSingleton {
       false
     );
 
-    this.#handleListChanged = async () => {
+    this.#handleListChanged = () => {
       if (!lazy.IPProtectionServerlist.hasList) {
         return;
       }
-      if (lazy.IPPProxyManager.state === lazy.IPPProxyStates.ACTIVE) {
-        await lazy.IPPProxyManager.stop(false);
-        await lazy.IPPProxyManager.start(
-          false,
-          PrivateBrowsingUtils.permanentPrivateBrowsing
-        );
+      if (
+        this.autoStart &&
+        lazy.IPPProxyManager.state === lazy.IPPProxyStates.ACTIVE
+      ) {
+        lazy.IPPProxyManager.switch();
         return;
       }
       this.init();
