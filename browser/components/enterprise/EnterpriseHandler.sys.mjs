@@ -344,7 +344,7 @@ export const EnterpriseHandler = {
 
     let titleId, messageId;
     if (hasTabsWarning) {
-      const warnSuffix = warnOnSignout ? "-warn" : "";
+      const warnSuffix = warnOnSignout ? "-and-signout-warning" : "";
       titleId = {
         id: `enterprise-close-prompt-title-with-tabcount${warnSuffix}`,
         args: { tabCount },

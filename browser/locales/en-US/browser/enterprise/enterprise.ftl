@@ -19,7 +19,7 @@ enterprise-close-prompt-title = Close { -brand-short-name }?
 
 # Variables:
 #   $tabCount (Number): The number of tabs to be closed.
-enterprise-close-prompt-title-with-tabcount-warn =
+enterprise-close-prompt-title-with-tabcount-and-signout-warning =
     { $tabCount ->
         [one] Close { -brand-short-name } and { $tabCount } tab?
        *[other] Close { -brand-short-name } and { $tabCount } tabs?
@@ -37,7 +37,7 @@ enterprise-close-prompt-message = You’re about to sign out of { -brand-short-n
 
 # Variables:
 #   $tabCount (Number): The number of tabs to be closed.
-enterprise-close-prompt-message-with-tabcount-warn =
+enterprise-close-prompt-message-with-tabcount-and-signout-warning =
     { $tabCount ->
         [one] You’re about to sign out of { -brand-short-name } and close { $tabCount } tab.
        *[other] You’re about to sign out of { -brand-short-name } and close { $tabCount } tabs.
