@@ -212,13 +212,13 @@ export const EnterpriseHandler = {
   _initAccessConnectorButton(window) {
     const button = window.document.getElementById("access-connector-button");
 
-    const updateButtonState = location => {
+    const updateButtonState = () => {
+      const principal = window.gBrowser.selectedBrowser?.contentPrincipal;
       let isProtected = false;
       try {
-        isProtected =
-          lazy.IPPProxyManager.channelFilter()?.shouldInclude({
-            URI: location,
-          }) ?? false;
+        isProtected = principal
+          ? lazy.IPPProxyManager.isProtected(principal)
+          : false;
       } catch (e) {
         lazy.log.warn("Failed to check access connector state for URI: ", e);
       }
@@ -230,46 +230,31 @@ export const EnterpriseHandler = {
     });
 
     const handleLocationChange = {
-      onLocationChange(webProgress, _request, location, flags) {
+      onLocationChange(webProgress, _request, _location, flags) {
         if (!webProgress.isTopLevel) {
           return;
         }
-
-        if (!location) {
-          return;
-        }
-
-        const isReload =
-          flags & Ci.nsIWebProgressListener.LOCATION_CHANGE_RELOAD;
         const isSameDocument =
           flags & Ci.nsIWebProgressListener.LOCATION_CHANGE_SAME_DOCUMENT;
-
-        // Ignore location changes that are not full navigations
-        if (isReload || isSameDocument) {
+        if (isSameDocument) {
           return;
         }
-
-        updateButtonState(location);
+        updateButtonState();
       },
     };
 
     window.gBrowser.addProgressListener(handleLocationChange);
 
-    const handleProxyStateChange = () => {
-      updateButtonState(window.gBrowser.selectedBrowser?.currentURI);
-    };
-
     lazy.IPPProxyManager.addEventListener(
       "IPPProxyManager:StateChanged",
-      handleProxyStateChange
+      updateButtonState
     );
 
     window.addEventListener("unload", () => {
       lazy.IPPProxyManager.removeEventListener(
         "IPPProxyManager:StateChanged",
-        handleProxyStateChange
+        updateButtonState
       );
-
       window.gBrowser.removeProgressListener(handleLocationChange);
     });
   },
