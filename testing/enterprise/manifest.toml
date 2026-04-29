@@ -50,6 +50,8 @@ run-if = [
 
 ["test_felt_browser_signout.py"]
 
+["test_felt_browser_signout_cancel.py"]
+
 ["test_felt_browser_signout_on_exit.py"]
 
 ["test_felt_browser_signout_verify.py"]

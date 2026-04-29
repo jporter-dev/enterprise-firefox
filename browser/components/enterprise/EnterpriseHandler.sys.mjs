@@ -123,6 +123,16 @@ export const EnterpriseHandler = {
   _tabCount: null,
 
   /**
+   * Reference to the element that opened the enterprise panel, used to
+   * restore focus if the signout dialog is cancelled. Cleared in onSignOut
+   * regardless of outcome. A weak reference is used so the element is not
+   * kept alive if the panel opener is destroyed before signout completes.
+   *
+   * @type {nsIWeakReference | null}
+   */
+  _panelOpenerRef: null,
+
+  /**
    * Handles the enterprise state for each new browser window.
    * On first call:
    *    - Make a request to the console to retrieve the user information of the signed in user.
@@ -287,7 +297,8 @@ export const EnterpriseHandler = {
   },
 
   openPanel(element, event) {
-    const win = element.documentGlobal;
+    const win = element.ownerGlobal;
+    this._panelOpenerRef = Cu.getWeakReference(element);
     win.PanelUI.showSubView("panelUI-enterprise", element, event);
     const document = element.ownerDocument;
 
@@ -526,7 +537,20 @@ export const EnterpriseHandler = {
    * @param {Window} window
    */
   async onSignOut(window) {
+    const prevFocus = this._panelOpenerRef?.get();
+    this._panelOpenerRef = null;
+
     if (!(await this.showSignoutPrompt(window))) {
+      // restore focus to the Enterprise Badge button when dismissing the dialog
+      if (prevFocus) {
+        prevFocus.setAttribute("tabindex", "-1");
+        prevFocus.focus();
+        prevFocus.addEventListener(
+          "blur",
+          () => prevFocus.removeAttribute("tabindex"),
+          { once: true }
+        );
+      }
       return;
     }
     await this.initiateShutdown();

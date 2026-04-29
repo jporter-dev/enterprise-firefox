@@ -30,6 +30,24 @@ class BaseBrowserSignout(FeltTests):
         self._driver.set_context("content")
         return private_cookies
 
+    def _wait_for_signout_dialog(self):
+        self._logger.info("Waiting for the custom signout dialog to open")
+        self._child_wait.until(
+            lambda _: self._child_driver.execute_script(
+                """
+                try {
+                    const dialog = document.getElementById('window-modal-dialog');
+                    return (dialog?.open && dialog.querySelector(".dialogFrame")
+                        ?.contentDocument
+                        ?.getElementById("enterpriseCloseDialog")
+                        ?.getButton('accept') !== null);
+                } catch (e) {
+                    return false;
+                }
+                """
+            )
+        )
+
     def _do_signout(self):
         self.assert_user_signed_in(env=Environment.FIREFOX)
         # Cache email for later use in prefilled email input field assertion
@@ -50,22 +68,7 @@ class BaseBrowserSignout(FeltTests):
         self._logger.info("Clicking signout button in enterprise panel")
         self.get_elem_child(".panelUI-enterprise__sign-out-btn").click()
 
-        self._logger.info("Waiting for the custom signout dialog to open")
-        self._child_wait.until(
-            lambda _: self._child_driver.execute_script(
-                """
-                try {
-                    const dialog = document.getElementById('window-modal-dialog');
-                    return (dialog?.open && dialog.querySelector(".dialogFrame")
-                        ?.contentDocument
-                        ?.getElementById("enterpriseCloseDialog")
-                        ?.getButton('accept') !== null);
-                } catch (e) {
-                    return false;
-                }
-                """
-            )
-        )
+        self._wait_for_signout_dialog()
 
         self._logger.info(
             "Signing out the user by clicking the Signout button in the custom signout dialog"
