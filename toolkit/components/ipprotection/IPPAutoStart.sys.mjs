@@ -54,16 +54,31 @@ class IPPAutoStartSingleton {
       false
     );
 
-    this.#handleListChanged = () => {
+    this.#handleListChanged = async () => {
       if (!lazy.IPProtectionServerlist.hasList) {
         return;
       }
-      if (
-        this.autoStart &&
-        lazy.IPPProxyManager.state === lazy.IPPProxyStates.ACTIVE
-      ) {
-        lazy.IPPProxyManager.switch();
-        return;
+      if (this.autoStart) {
+        const state = lazy.IPPProxyManager.state;
+        if (state === lazy.IPPProxyStates.ACTIVE) {
+          lazy.IPPProxyManager.switch();
+          return;
+        }
+        if (state === lazy.IPPProxyStates.ERROR) {
+          await lazy.IPPProxyManager.reset();
+          lazy.IPPProxyManager.start(
+            false,
+            PrivateBrowsingUtils.permanentPrivateBrowsing
+          );
+          return;
+        }
+        if (state === lazy.IPPProxyStates.READY) {
+          lazy.IPPProxyManager.start(
+            false,
+            PrivateBrowsingUtils.permanentPrivateBrowsing
+          );
+          return;
+        }
       }
       this.init();
     };
