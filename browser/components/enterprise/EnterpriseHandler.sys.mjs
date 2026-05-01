@@ -123,10 +123,10 @@ export const EnterpriseHandler = {
   _tabCount: null,
 
   /**
-   * Reference to the element that opened the enterprise panel, used to
-   * restore focus if the signout dialog is cancelled. Cleared in onSignOut
-   * regardless of outcome. A weak reference is used so the element is not
-   * kept alive if the panel opener is destroyed before signout completes.
+   * Weak reference to the element that keyboard-activated the enterprise panel,
+   * used to restore focus if the signout dialog is cancelled. Only set for
+   * keyboard activations; null for mouse. Cleared in onSignOut regardless of
+   * outcome.
    *
    * @type {nsIWeakReference | null}
    */
@@ -297,8 +297,14 @@ export const EnterpriseHandler = {
   },
 
   openPanel(element, event) {
-    const win = element.ownerGlobal;
-    this._panelOpenerRef = Cu.getWeakReference(element);
+    const win = element.documentGlobal;
+    const isKeyboardActivation =
+      event?.type === "keypress" ||
+      event?.type === "keydown" ||
+      event?.inputSource === MouseEvent.MOZ_SOURCE_KEYBOARD;
+    this._panelOpenerRef = isKeyboardActivation
+      ? Cu.getWeakReference(element)
+      : null;
     win.PanelUI.showSubView("panelUI-enterprise", element, event);
     const document = element.ownerDocument;
 
@@ -541,7 +547,7 @@ export const EnterpriseHandler = {
     this._panelOpenerRef = null;
 
     if (!(await this.showSignoutPrompt(window))) {
-      // restore focus to the Enterprise Badge button when dismissing the dialog
+      // restore focus to the Enterprise Badge button when dialog is dismissed
       if (prevFocus) {
         prevFocus.setAttribute("tabindex", "-1");
         prevFocus.focus();

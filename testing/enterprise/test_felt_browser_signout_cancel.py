@@ -21,8 +21,18 @@ class BrowserSignoutCancel(BaseBrowserSignout):
 
         self._child_driver.set_context("chrome")
 
-        self._logger.info("Clicking enterprise badge to open enterprise panel")
-        self.get_elem_child("#enterprise-badge-toolbar-button").click()
+        self._logger.info(
+            "Focusing and keyboard-activating enterprise badge to open enterprise panel"
+        )
+        self._child_driver.execute_script(
+            """
+            const btn = document.getElementById("enterprise-badge-toolbar-button");
+            Services.focus.setFocus(btn, Services.focus.FLAG_BYKEY);
+            btn.dispatchEvent(
+                new KeyboardEvent("keypress", { key: "Enter", bubbles: true, cancelable: true })
+            );
+            """
+        )
 
         self._logger.info("Clicking signout button in enterprise panel")
         self.get_elem_child(".panelUI-enterprise__sign-out-btn").click()
