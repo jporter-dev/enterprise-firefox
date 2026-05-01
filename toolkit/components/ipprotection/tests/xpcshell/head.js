@@ -13,6 +13,9 @@ const { ERRORS, IPPProxyManager, IPPProxyStates } = ChromeUtils.importESModule(
 const { ProxyPass, ProxyUsage, Entitlement } = ChromeUtils.importESModule(
   "moz-src:///toolkit/components/ipprotection/GuardianTypes.sys.mjs"
 );
+const { AppConstants } = ChromeUtils.importESModule(
+  "resource://gre/modules/AppConstants.sys.mjs"
+);
 const { RemoteSettings } = ChromeUtils.importESModule(
   "resource://services-settings/remote-settings.sys.mjs"
 );
@@ -21,6 +24,12 @@ const { IPProtectionActivator } = ChromeUtils.importESModule(
 );
 const { IPPDummyAuthProvider } = ChromeUtils.importESModule(
   "resource://testing-common/ipprotection/IPPDummyAuthProvider.sys.mjs"
+);
+const { IPProtectionServerlist, PrefServerList } = ChromeUtils.importESModule(
+  "moz-src:///toolkit/components/ipprotection/IPProtectionServerlist.sys.mjs"
+);
+const { IPPFxaAuthProvider } = ChromeUtils.importESModule(
+  "moz-src:///toolkit/components/ipprotection/fxa/IPPFxaAuthProvider.sys.mjs"
 );
 IPProtectionActivator.addHelpers(IPPDummyAuthProvider.helpers);
 IPProtectionActivator.setupHelpers();
@@ -60,6 +69,14 @@ async function putServerInRemoteSettings(
     cities: [TEST_US_CITY],
   };
   do_get_profile();
+  if (AppConstants.MOZ_ENTERPRISE) {
+    Services.prefs.setStringPref(
+      PrefServerList.PREF_NAME,
+      JSON.stringify([US])
+    );
+    await IPProtectionServerlist.maybeFetchList(true);
+    return;
+  }
   const client = RemoteSettings("vpn-serverlist");
   await client.db.clear();
   await client.db.create(US);

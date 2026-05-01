@@ -118,6 +118,10 @@ add_task(async function test_IPProtectionService_updateEnrollment() {
  * Tests a user in the experiment can enroll with Guardian by clicking get started.
  */
 add_task(async function test_IPProtectionService_enroll() {
+  if (AppConstants.MOZ_ENTERPRISE) {
+    // Enterprise is always signed in; there is no unauthenticated panel UI.
+    return;
+  }
   setupService({
     isReady: false,
     canEnroll: true,
@@ -234,6 +238,10 @@ add_task(async function test_ipprotection_ready() {
  * Tests showing an error state UI and dismissing it on panel close.
  */
 add_task(async function test_IPProtectionService_pass_errors() {
+  if (AppConstants.MOZ_ENTERPRISE) {
+    // Enterprise renders a different panel template without the status card UI.
+    return;
+  }
   setupService({
     isReady: true,
     proxyPass: {

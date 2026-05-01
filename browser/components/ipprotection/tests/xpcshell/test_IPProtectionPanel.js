@@ -6,9 +6,6 @@ https://creativecommons.org/publicdomain/zero/1.0/ */
 const { IPProtectionPanel } = ChromeUtils.importESModule(
   "moz-src:///browser/components/ipprotection/IPProtectionPanel.sys.mjs"
 );
-const { IPProtectionServerlist } = ChromeUtils.importESModule(
-  "moz-src:///toolkit/components/ipprotection/IPProtectionServerlist.sys.mjs"
-);
 
 /**
  * A class that mocks the IP Protection panel.
@@ -228,6 +225,12 @@ add_task(async function test_IPProtectionPanel_signedIn() {
   ipProtectionPanel.components.add(fakeElement);
   ipProtectionPanel.panel = new FakeIPProtectionPanelView();
   fakeElement.isConnected = true;
+
+  // In enterprise builds the state is already READY (isSignedIn is always
+  // true). Force UNAUTHENTICATED so updateState() produces a real transition.
+  if (AppConstants.MOZ_ENTERPRISE) {
+    IPProtectionService.setState(IPProtectionStates.UNAUTHENTICATED);
+  }
 
   let signedInEventPromise = waitForEvent(
     IPProtectionService,

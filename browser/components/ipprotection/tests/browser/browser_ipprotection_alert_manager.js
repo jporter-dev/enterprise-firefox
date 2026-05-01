@@ -186,6 +186,10 @@ add_task(async function test_ipprotectionPrompts() {
 });
 
 add_task(async function test_continueWithoutVPN() {
+  if (AppConstants.MOZ_ENTERPRISE) {
+    // Enterprise renders a different panel template without the paused state UI.
+    return;
+  }
   IPProtectionAlertManager.init();
   setupService({
     isReady: true,
@@ -270,6 +274,10 @@ add_task(async function test_continueWithoutVPN() {
 });
 
 add_task(async function test_closeAllTabs() {
+  if (AppConstants.MOZ_ENTERPRISE) {
+    // Enterprise renders a different panel template without the paused state UI.
+    return;
+  }
   IPProtectionAlertManager.init();
   setupService({
     isReady: true,

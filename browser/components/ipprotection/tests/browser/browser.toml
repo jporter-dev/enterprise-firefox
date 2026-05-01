@@ -1,4 +1,5 @@
 [DEFAULT]
+environment = ["MOZ_BYPASS_FELT=1"]
 support-files = [
   "head.js",
 ]
@@ -16,6 +17,7 @@ prefs = [
 ["browser_IPPProxyManager.js"]
 
 ["browser_IPPUsageHelper.js"]
+skip-if = ["enterprise"]
 
 ["browser_IPProtectionService.js"]
 
@@ -24,6 +26,7 @@ prefs = [
 ["browser_ipprotection_alert_manager.js"]
 
 ["browser_ipprotection_bandwidth_precision.js"]
+skip-if = ["enterprise"]
 
 ["browser_ipprotection_confirmation_hints_site_exclusion.js"]
 
