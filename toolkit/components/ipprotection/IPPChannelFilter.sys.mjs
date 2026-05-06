@@ -228,6 +228,11 @@ export class IPPChannelFilter {
       MODE_PREF,
       IPPMode.MODE_FULL
     );
+
+    this.#inclusionPrefObserver = () => {
+      this.#inclusionSet = IPPChannelFilter.getInclusionList();
+    };
+    Services.prefs.addObserver(INCLUSION_PREF, this.#inclusionPrefObserver);
   }
 
   /**
@@ -423,10 +428,6 @@ export class IPPChannelFilter {
       0 /* unsigned long aPosition */
     );
     this.#active = true;
-    this.#inclusionPrefObserver = () => {
-      this.#inclusionSet = IPPChannelFilter.getInclusionList();
-    };
-    Services.prefs.addObserver(INCLUSION_PREF, this.#inclusionPrefObserver);
   }
 
   /**

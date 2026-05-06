@@ -412,17 +412,20 @@ export class PrefServerList extends IPProtectionServerlistBase {
 
   async initOnStartupCompleted() {
     Services.prefs.addObserver(PrefServerList.PREF_NAME, this.#observer);
+    // If the pref changed between startup and registering the observer we have
+    // not handled it yet. If the value hasn't actually changed, this is a no-op.
+    this.maybeFetchList();
   }
 
   uninit() {
     Services.prefs.removeObserver(PrefServerList.PREF_NAME, this.#observer);
   }
 
-  maybeFetchList(_forceUpdate = false) {
+  maybeFetchList(forceUpdate = false) {
     const newList = Services.prefs.getStringPref(PrefServerList.PREF_NAME, "");
 
     // If the list hasn't changed, we don't need to fetch it again.
-    if (!_forceUpdate && newList === this.#previousList) {
+    if (!forceUpdate && newList === this.#previousList) {
       return Promise.resolve();
     }
     this.#previousList = newList;
