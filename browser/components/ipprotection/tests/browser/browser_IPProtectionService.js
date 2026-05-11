@@ -58,6 +58,10 @@ async function optInUser() {
  * creating and destroying the widget.
  */
 add_task(async function test_IPProtectionService_updateEligibility() {
+  if (AppConstants.MOZ_ENTERPRISE) {
+    // Enterprise is always enabled via policy; it doesn't use Nimbus experiments.
+    return;
+  }
   let cleanupAlpha = await setupExperiment({ enabled: true, variant: "alpha" });
   Assert.equal(
     IPProtectionService.state,
@@ -159,6 +163,10 @@ add_task(async function test_IPProtectionService_enroll() {
  */
 add_task(
   async function test_IPProtectionService_updateEntitlement_in_experiment() {
+    if (AppConstants.MOZ_ENTERPRISE) {
+      // Enterprise is always enabled via policy; it doesn't use Nimbus experiments.
+      return;
+    }
     Services.prefs.clearUserPref("browser.ipProtection.enabled");
     setupService({
       isReady: true,
@@ -416,6 +424,10 @@ add_task(async function test_IPProtectionService_stop_on_signout() {
  * Tests that exposure events will be sent for branches and control
  */
 add_task(async function test_IPProtectionService_exposure() {
+  if (AppConstants.MOZ_ENTERPRISE) {
+    // Enterprise is always enabled via policy; it doesn't use Nimbus experiments.
+    return;
+  }
   Services.telemetry.clearEvents();
   NimbusFeatures.ipProtection._didSendExposureEvent = false;
 

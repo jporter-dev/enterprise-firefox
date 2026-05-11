@@ -440,6 +440,10 @@ add_task(
 
 add_task(
   async function test_telemetry_alert_button_clicked_paused_continueWithoutVPN() {
+    if (AppConstants.MOZ_ENTERPRISE) {
+      // Enterprise doesn't enter a paused state; the continue-without-VPN flow doesn't exist.
+      return;
+    }
     Services.fog.testResetFOG();
     await Services.fog.testFlushAllChildren();
 

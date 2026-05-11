@@ -368,6 +368,10 @@ add_task(async function test_user_enable_count() {
  * Tests showing the locations subview.
  */
 add_task(async function test_show_locations() {
+  if (AppConstants.MOZ_ENTERPRISE) {
+    // Enterprise uses a different panel template without the location selector UI.
+    return;
+  }
   let button = document.getElementById(lazy.IPProtectionWidget.WIDGET_ID);
   let panelView = PanelMultiView.getViewNode(
     document,

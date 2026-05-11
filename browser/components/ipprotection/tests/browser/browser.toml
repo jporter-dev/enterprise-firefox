@@ -16,6 +16,7 @@ prefs = [
 ["browser_IPPProxyManager.js"]
 
 ["browser_IPPUsageHelper.js"]
+# Enterprise has no status card or bandwidth meter; IPPUsageHelper has no UI to drive.
 skip-if = ["enterprise"]
 
 ["browser_IPProtectionService.js"]
@@ -25,31 +26,41 @@ skip-if = ["enterprise"]
 ["browser_ipprotection_alert_manager.js"]
 
 ["browser_ipprotection_bandwidth_precision.js"]
+# Enterprise has no status card or bandwidth meter.
 skip-if = ["enterprise"]
 
 ["browser_ipprotection_confirmation_hints_site_exclusion.js"]
+# Enterprise has no site exclusion feature; confirmation hints for exclusion toggles never fire.
+skip-if = ["enterprise"]
 
 ["browser_ipprotection_content.js"]
+# Enterprise renders a minimal panel template without status card, upgrade, or paused UI.
 skip-if = ["enterprise"]
 
 ["browser_ipprotection_content_site_exclusion.js"]
+# Enterprise uses a different panel template without the site exclusion toggle UI.
 skip-if = ["enterprise"]
 
 ["browser_ipprotection_content_unauthenticated.js"]
+# Enterprise is always authenticated; there is no unauthenticated panel UI.
 skip-if = ["enterprise"]
 
 ["browser_ipprotection_header.js"]
+# Enterprise replaces the help-button header with an Access Connector status label.
 skip-if = ["enterprise"]
 
 ["browser_ipprotection_infobar.js"]
 
 ["browser_ipprotection_keyboard_navigation.js"]
+# Enterprise renders a different panel template; the navigable elements these tests rely on don't exist.
 skip-if = ["enterprise"]
 
 ["browser_ipprotection_location_selector_telemetry.js"]
+# Enterprise uses a different panel template without the status card or location selector UI.
 skip-if = ["enterprise"]
 
 ["browser_ipprotection_locations_keyboard_navigation.js"]
+# Enterprise uses a different panel template without the status card or location selector UI.
 skip-if = ["enterprise"]
 
 ["browser_ipprotection_locations_list.js"]
@@ -67,6 +78,7 @@ skip-if = ["enterprise"]
 ["browser_ipprotection_status_box.js"]
 
 ["browser_ipprotection_status_card.js"]
+# Enterprise has no status card UI.
 skip-if = ["enterprise"]
 
 ["browser_ipprotection_telemetry.js"]

@@ -542,6 +542,7 @@ async function putServerInRemoteSettings(
     cities: [TEST_US_CITY],
   };
   if (AppConstants.MOZ_ENTERPRISE) {
+    // Enterprise uses a pref-based server list instead of RemoteSettings.
     Services.prefs.setStringPref(
       PrefServerList.PREF_NAME,
       JSON.stringify([US])
