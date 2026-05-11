@@ -6,7 +6,7 @@ const XUL_NS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
 const gArgs = window.arguments[0].wrappedJSObject ?? window.arguments[0];
 
 /**
- * Initializes the enterprise close dialog, called on DOMContentLoaded.
+ * Initializes the enterprise close dialog, called on window load.
  */
 function onLoad() {
   document.title = gArgs.title;
@@ -72,4 +72,4 @@ function onCancel() {
   gArgs.accepted = false;
 }
 
-document.addEventListener("DOMContentLoaded", onLoad);
+window.addEventListener("load", onLoad);

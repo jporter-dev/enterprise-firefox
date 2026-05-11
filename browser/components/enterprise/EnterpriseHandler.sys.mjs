@@ -144,6 +144,45 @@ export const EnterpriseHandler = {
     this.updateBadge(window);
     this.restrictEnterpriseView(window);
     this._initLockdownModeButton(window);
+    this._initWindowCloseHandler(window);
+  },
+
+  /**
+   * Registers capture-phase event listeners on the window so that the
+   * enterprise signout prompt is shown before any window is closed when other
+   * browser windows are still open. This covers two close paths:
+   *   - "close" (eClose): native OS close button / window manager close signal
+   *   - "DOMWindowClose": window.close() called from JavaScript (e.g. Cmd+W)
+   *
+   * @param {Window} window - The chrome window to register the listeners on.
+   */
+  _initWindowCloseHandler(window) {
+    const handleClose = event => {
+      if (Services.startup.shuttingDown) {
+        return;
+      }
+      const otherWindowsExist = [
+        ...Services.wm.getEnumerator("navigator:browser"),
+      ].some(w => !w.closed && w !== window);
+      if (!otherWindowsExist) {
+        return;
+      }
+      if (this.shouldShowClosePrompt()) {
+        event.preventDefault();
+        this.showSignoutPrompt(window)
+          .then(proceed => {
+            if (proceed) {
+              Services.startup.quit(Ci.nsIAppStartup.eAttemptQuit);
+            }
+          })
+          .catch(e => {
+            lazy.log.error(`Enterprise signout prompt failed, quitting: ${e}`);
+            Services.startup.quit(Ci.nsIAppStartup.eForceQuit);
+          });
+      }
+    };
+    window.addEventListener("close", handleClose, { capture: true });
+    window.addEventListener("DOMWindowClose", handleClose, { capture: true });
   },
 
   async initUser() {

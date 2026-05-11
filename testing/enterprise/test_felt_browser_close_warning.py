@@ -163,6 +163,43 @@ class BrowserCloseWarning(FeltTests):
             "document.getElementById('enterpriseCloseDialog').getButton('accept').click();"
         )
 
+    def _cancel_close_dialog(self):
+        """Wait for the in-window close dialog and click its cancel button."""
+        self._logger.info("Waiting for the custom signout dialog to cancel")
+        self._wait_for_close_dialog()
+
+        self._logger.info("Cancelling the custom signout dialog")
+        self._child_driver.execute_script(
+            """
+            document.getElementById("window-modal-dialog")
+                .querySelector(".dialogFrame")
+                .contentDocument
+                .getElementById("enterpriseCloseDialog")
+                .getButton("cancel")
+                .click();
+            """
+        )
+
+    def _get_browser_window_count(self):
+        """Return the current number of open navigator:browser windows."""
+        self._child_driver.set_context("chrome")
+        count = self._child_driver.execute_script(
+            "return [...Services.wm.getEnumerator('navigator:browser')].length;"
+        )
+        self._child_driver.set_context("content")
+        return count
+
+    def _open_second_browser_window(self):
+        """Open a second browser window and wait for it to be ready."""
+        self._child_driver.set_context("chrome")
+        self._child_driver.execute_script("OpenBrowserWindow();")
+        self._child_wait.until(
+            lambda _: self._child_driver.execute_script(
+                "return [...Services.wm.getEnumerator('navigator:browser')].length >= 2;"
+            )
+        )
+        self._child_driver.set_context("content")
+
     def _wait_for_child_browser_closed(self):
         """Poll until the child browser has fully closed."""
         self._logger.info("Waiting for child browser to close.")
@@ -281,3 +318,38 @@ class BrowserCloseWarning(FeltTests):
         self._accept_standalone_close_dialog(initial_handles)
         self._wait_for_child_browser_closed()
         self.assert_child_browser_closed()
+
+    def test_closing_multiple_windows_aborted_keeps_all_windows(self):
+        """Simulates OS 'Quit X windows': closing all windows individually should show
+        the enterprise dialog on the first close attempt, and cancelling should leave
+        all windows open (regression test for Bug 2035796)."""
+        super().run_felt_base()
+        self.connect_child_browser()
+        self.assert_user_signed_in(env=Environment.FIREFOX)
+
+        self._set_child_bool_pref(PREF_PROMPT_ON_SIGNOUT, True)
+        self._set_child_bool_pref(PREF_WARN_ON_CLOSE, False)
+
+        self._open_second_browser_window()
+        assert self._get_browser_window_count() == 2, (
+            "Expected 2 browser windows to be open"
+        )
+
+        # Simulate OS "Quit X windows" by closing all browser windows individually.
+        # Concurrent close events will replace the dialog via replaceDialogIfOpen().
+        self._child_driver.set_context("chrome")
+        self._child_driver.execute_script(
+            """
+            const wins = [...Services.wm.getEnumerator('navigator:browser')];
+            wins.forEach(win => win.BrowserCommands.tryToCloseWindow());
+            """
+        )
+
+        # Cancel — both windows must remain open.
+        self._cancel_close_dialog()
+
+        window_count = self._get_browser_window_count()
+        assert window_count == 2, (
+            f"Expected both windows to remain open after cancelling the enterprise "
+            f"dialog, but {window_count} window(s) were found"
+        )
