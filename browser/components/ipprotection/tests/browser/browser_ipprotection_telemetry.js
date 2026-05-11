@@ -30,6 +30,10 @@ async function resetStateToObj(content, originalState) {
  * is turned on or off
  */
 add_task(async function user_start_and_stop() {
+  if (AppConstants.MOZ_ENTERPRISE) {
+    // Enterprise has no user-facing proxy toggle, so userAction: true telemetry cannot occur.
+    return;
+  }
   let button = document.getElementById(IPProtectionWidget.WIDGET_ID);
   Assert.ok(
     BrowserTestUtils.isVisible(button),
@@ -159,6 +163,10 @@ add_task(async function start_in_private_browsing() {
  * Tests that the click upgrade button event is recorded when CTA is clicked
  */
 add_task(async function click_upgrade_button() {
+  if (AppConstants.MOZ_ENTERPRISE) {
+    // Enterprise has no upgrade/paused flow; the upgrade CTA is never rendered.
+    return;
+  }
   let button = document.getElementById(IPProtectionWidget.WIDGET_ID);
   Assert.ok(
     BrowserTestUtils.isVisible(button),

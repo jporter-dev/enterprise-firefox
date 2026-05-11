@@ -311,6 +311,10 @@ add_task(async function test_IPProtectionService_pass_errors() {
  * Tests retry after an error.
  */
 add_task(async function test_IPProtectionService_retry_errors() {
+  if (AppConstants.MOZ_ENTERPRISE) {
+    // Enterprise renders a different panel template without the status card UI.
+    return;
+  }
   setupService({
     isReady: true,
     canEnroll: true,
@@ -349,6 +353,11 @@ add_task(async function test_IPProtectionService_retry_errors() {
  * Tests the proxy is stopped if user signs out with it active.
  */
 add_task(async function test_IPProtectionService_stop_on_signout() {
+  if (AppConstants.MOZ_ENTERPRISE) {
+    // Enterprise always considers users authenticated (no FxA sign-out), so
+    // this scenario cannot occur. The panel also lacks the status card UI.
+    return;
+  }
   setupService({
     isReady: true,
     canEnroll: true,

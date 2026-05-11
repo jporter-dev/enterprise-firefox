@@ -1,5 +1,4 @@
 [DEFAULT]
-environment = ["MOZ_BYPASS_FELT=1"]
 support-files = [
   "head.js",
 ]
@@ -31,20 +30,27 @@ skip-if = ["enterprise"]
 ["browser_ipprotection_confirmation_hints_site_exclusion.js"]
 
 ["browser_ipprotection_content.js"]
+skip-if = ["enterprise"]
 
 ["browser_ipprotection_content_site_exclusion.js"]
+skip-if = ["enterprise"]
 
 ["browser_ipprotection_content_unauthenticated.js"]
+skip-if = ["enterprise"]
 
 ["browser_ipprotection_header.js"]
+skip-if = ["enterprise"]
 
 ["browser_ipprotection_infobar.js"]
 
 ["browser_ipprotection_keyboard_navigation.js"]
+skip-if = ["enterprise"]
 
 ["browser_ipprotection_location_selector_telemetry.js"]
+skip-if = ["enterprise"]
 
 ["browser_ipprotection_locations_keyboard_navigation.js"]
+skip-if = ["enterprise"]
 
 ["browser_ipprotection_locations_list.js"]
 
@@ -61,6 +67,7 @@ skip-if = ["enterprise"]
 ["browser_ipprotection_status_box.js"]
 
 ["browser_ipprotection_status_card.js"]
+skip-if = ["enterprise"]
 
 ["browser_ipprotection_telemetry.js"]
 
