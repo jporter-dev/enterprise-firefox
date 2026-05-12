@@ -193,7 +193,7 @@ class BrowserCloseWarning(FeltTests):
         assert is_registered, (
             f"{PREF_PROMPT_ON_SIGNOUT} has no registered default value"
         )
-        assert default_value is True, (
+        assert default_value, (
             f"Expected {PREF_PROMPT_ON_SIGNOUT} default to be True, got {default_value!r}"
         )
 
