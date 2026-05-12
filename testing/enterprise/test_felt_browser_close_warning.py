@@ -176,6 +176,27 @@ class BrowserCloseWarning(FeltTests):
 
         self._child_wait.until(is_closed)
 
+    def test_prompt_on_signout_default_is_true(self):
+        """enterprise.prompt_on_signout must have a registered default of true."""
+        super().run_felt_base()
+        self.connect_child_browser()
+
+        self._child_driver.set_context("chrome")
+        is_registered = self._child_driver.execute_script(
+            f"return Services.prefs.getDefaultBranch('').getPrefType('{PREF_PROMPT_ON_SIGNOUT}') === Services.prefs.PREF_BOOL;"
+        )
+        default_value = self._child_driver.execute_script(
+            f"return Services.prefs.getDefaultBranch('').getBoolPref('{PREF_PROMPT_ON_SIGNOUT}', false);"
+        )
+        self._child_driver.set_context("content")
+
+        assert is_registered, (
+            f"{PREF_PROMPT_ON_SIGNOUT} has no registered default value"
+        )
+        assert default_value is True, (
+            f"Expected {PREF_PROMPT_ON_SIGNOUT} default to be True, got {default_value!r}"
+        )
+
     def test_browser_window_close_signout_warning_only(self):
         """Sign-out warn on, tabs warn off, single tab - enterprise signout dialog shows."""
         super().run_felt_base()
