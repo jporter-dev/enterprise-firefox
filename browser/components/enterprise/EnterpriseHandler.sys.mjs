@@ -115,12 +115,12 @@ export const EnterpriseHandler = {
    * resulting re-quit skips showing it again.
    */
   _skipSignoutPrompt: false,
-
   /**
-   * Cached count of open tabs used when showing the close prompt to avoid recounting
-   * tabs multiple times during the prompt flow. Resets to null after use.
+   * Set to true synchronously before the first await in showSignoutPrompt so
+   * that windows deferring their standard tab warning can detect that enterprise
+   * is handling the quit prompt in the next event-loop tick.
    */
-  _tabCount: null,
+  _dialogPending: false,
 
   /**
    * Handles the enterprise state for each new browser window.
@@ -375,7 +375,9 @@ export const EnterpriseHandler = {
     ]);
 
     const checkboxes = [
-      { id: "warnOnSignout", label: checkLabel, checked: warnOnSignout },
+      ...(warnOnSignout
+        ? [{ id: "warnOnSignout", label: checkLabel, checked: true }]
+        : []),
       ...(hasMultipleTabs
         ? [
             {
@@ -436,6 +438,24 @@ export const EnterpriseHandler = {
   },
 
   /**
+   * Returns true if enterprise preferences suggest a close prompt might be shown,
+   * without any side effects. Used to decide whether to defer the standard tab warning.
+   *
+   * @returns {boolean}
+   */
+  _mightShowClosePrompt() {
+    const warnOnSignout = Services.prefs.getBoolPref(
+      PROMPT_ON_SIGNOUT_PREF,
+      true
+    );
+    const warnOnCloseWithTabs = Services.prefs.getBoolPref(
+      WARN_ON_CLOSE_PREF,
+      false
+    );
+    return warnOnSignout || warnOnCloseWithTabs;
+  },
+
+  /**
    * Determines whether the signout/close prompt should be shown based on preferences and current state.
    *
    * @returns {boolean} True if the prompt should be shown, false otherwise.
@@ -483,30 +503,52 @@ export const EnterpriseHandler = {
       return true;
     }
 
-    const params = await this._getSignoutPromptParams({
-      tabCount: this._tabCount,
-      warnOnSignout,
-      warnOnCloseWithTabs,
-    });
-    this._tabCount = null;
+    // Must be set before the first await so the next event-loop tick
+    // (setTimeout(0) in _afterTabWarnDefer) sees it.
+    this._dialogPending = true;
 
-    if (!window) {
-      params.wrappedJSObject = params;
-      Services.ww.openWindow(
-        null,
-        "chrome://browser/content/enterprise/enterprise-close-dialog.xhtml",
-        "_blank",
-        "chrome,centerscreen,modal,dialog",
-        params
-      );
-    } else {
-      if (window.gDialogBox.isOpen) {
-        window.gDialogBox.replaceDialogIfOpen();
+    let params;
+    try {
+      params = await this._getSignoutPromptParams({
+        tabCount: this._tabCount,
+        warnOnSignout,
+        warnOnCloseWithTabs,
+      });
+      this._tabCount = null;
+
+      // Re-find the best window after the await: the caller's window may have
+      // committed to closing during the localization IPC, so pick the first
+      // non-closing window instead.
+      let promptWin = window;
+      if (!promptWin || promptWin.closed || promptWin.isWindowClosing) {
+        for (let w of Services.wm.getEnumerator("navigator:browser")) {
+          if (!w.closed && !w.isWindowClosing && w.gDialogBox) {
+            promptWin = w;
+            break;
+          }
+        }
       }
-      await window.gDialogBox.open(
-        "chrome://browser/content/enterprise/enterprise-close-dialog.xhtml",
-        params
-      );
+
+      if (promptWin && !promptWin.closed && promptWin.gDialogBox) {
+        if (promptWin.gDialogBox.isOpen) {
+          promptWin.gDialogBox.replaceDialogIfOpen();
+        }
+        await promptWin.gDialogBox.open(
+          "chrome://browser/content/enterprise/enterprise-close-dialog.xhtml",
+          params
+        );
+      } else {
+        params.wrappedJSObject = params;
+        Services.ww.openWindow(
+          null,
+          "chrome://browser/content/enterprise/enterprise-close-dialog.xhtml",
+          "_blank",
+          "chrome,centerscreen,modal,dialog",
+          params
+        );
+      }
+    } finally {
+      this._dialogPending = false;
     }
 
     const accepted = this._handleSignoutPromptResult(
@@ -515,6 +557,14 @@ export const EnterpriseHandler = {
     );
     if (accepted) {
       this._skipSignoutPrompt = true;
+    } else {
+      // Release any windows that were holding their close pending this dialog.
+      for (let win of Services.wm.getEnumerator("navigator:browser")) {
+        if (!win.closed && win.isWindowClosing) {
+          win.isWindowClosing = false;
+          win._tabWarnDeferred = false;
+        }
+      }
     }
     return accepted;
   },

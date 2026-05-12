@@ -3687,7 +3687,14 @@ function WindowIsClosing(event) {
       source = event[key] ? "shortcut" : "OS";
     }
   }
+  // Set early so concurrent close events during the confirmEx/IPC spin in
+  // warnAboutClosingTabs or CanCloseWindow see this window as committed.
+  window.isWindowClosing = true;
+
   if (!closeWindow(false, warnAboutClosingWindow, source)) {
+    if (!window._tabWarnDeferred) {
+      window.isWindowClosing = false;
+    }
     return false;
   }
 
@@ -3709,6 +3716,7 @@ function WindowIsClosing(event) {
     return true;
   }
 
+  window.isWindowClosing = false;
   return false;
 }
 
@@ -3735,7 +3743,7 @@ function warnAboutClosingWindow() {
   let otherPBWindowExists = false;
   let otherWindowExists = false;
   for (let win of browserWindows()) {
-    if (!win.closed && win != window) {
+    if (!win.closed && !win.isWindowClosing && win != window) {
       otherWindowExists = true;
       if (isPBWindow && PrivateBrowsingUtils.isWindowPrivate(win)) {
         otherPBWindowExists = true;
@@ -3763,13 +3771,37 @@ function warnAboutClosingWindow() {
   }
 
   if (otherWindowExists) {
-    return (
-      isPBWindow ||
-      gBrowser.warnAboutClosingTabs(
+    if (!isPBWindow) {
+      // Yield one tick so concurrent close events can set isWindowClosing,
+      // ensuring the last remaining window fires browser-lastwindow-close-
+      // requested and enterprise handles a single unified prompt.
+      if (
+        AppConstants.MOZ_ENTERPRISE &&
+        !window._tabWarnDeferred &&
+        EnterpriseHandler._mightShowClosePrompt()
+      ) {
+        window._tabWarnDeferred = true;
+        setTimeout(() => {
+          if (
+            EnterpriseHandler._dialogPending ||
+            Services.startup.shuttingDown
+          ) {
+            return;
+          }
+          // Enterprise didn't take over. _tabWarnDeferred stays true so
+          // WindowIsClosing doesn't reset isWindowClosing, and warnAboutClosingWindow
+          // skips the defer on re-entry and proceeds to warnAboutClosingTabs.
+          window.close();
+        }, 0);
+        return false;
+      }
+      window._tabWarnDeferred = false;
+      return gBrowser.warnAboutClosingTabs(
         gBrowser.openTabs.length,
         gBrowser.closingTabsEnum.ALL
-      )
-    );
+      );
+    }
+    return true;
   }
 
   let os = Services.obs;

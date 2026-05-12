@@ -116,6 +116,67 @@ class BrowserCloseWarning(FeltTests):
             f"Unexpected dialog reauth: {content['reauth']!r}"
         )
 
+    def _cancel_close_dialog(self):
+        """Click the cancel button on the open enterprise close dialog."""
+        self._child_driver.execute_script(
+            """
+            document.getElementById("window-modal-dialog")
+                .querySelector(".dialogFrame")
+                .contentDocument
+                .getElementById("enterpriseCloseDialog")
+                .getButton("cancel")
+                .click();
+            """
+        )
+
+    def _wait_for_close_dialog_dismissed(self):
+        """Wait until the enterprise close dialog is no longer present."""
+        self._child_wait.until(
+            lambda _: (
+                not self._child_driver.execute_script(
+                    """
+                try {
+                    const dialog = document.getElementById('window-modal-dialog');
+                    return !!(dialog?.open && dialog.querySelector('.dialogFrame')
+                        ?.contentDocument
+                        ?.getElementById('enterpriseCloseDialog'));
+                } catch (e) {
+                    return false;
+                }
+                """
+                )
+            )
+        )
+
+    def _switch_to_window_with_close_dialog(self):
+        """Switch _child_driver to whichever browser window is showing the enterprise close dialog."""
+
+        def find_window(_):
+            for handle in self._child_driver.chrome_window_handles:
+                try:
+                    self._child_driver.switch_to_window(handle)
+                    self._child_driver.set_context("chrome")
+                    has_dialog = self._child_driver.execute_script(
+                        """
+                        try {
+                            const dialog = document.getElementById('window-modal-dialog');
+                            return !!(dialog?.open && dialog.querySelector('.dialogFrame')
+                                ?.contentDocument
+                                ?.getElementById('enterpriseCloseDialog')
+                                ?.getButton('accept'));
+                        } catch (e) {
+                            return false;
+                        }
+                        """
+                    )
+                    if has_dialog:
+                        return True
+                except Exception:
+                    pass
+            return False
+
+        self._child_wait.until(find_window)
+
     def _accept_close_dialog(self):
         """Wait for the in-window close dialog and click its accept button."""
         self._logger.info("Waiting for the custom signout dialog to open")
@@ -284,6 +345,71 @@ class BrowserCloseWarning(FeltTests):
 
         self._trigger_browser_closure()
 
+        self._wait_for_child_browser_closed()
+        self.assert_child_browser_closed()
+
+    def test_browser_window_close_cancel_keeps_browser_open(self):
+        """Cancelling the enterprise close dialog leaves the browser open."""
+        self.run_felt_base()
+        self.connect_child_browser()
+        self.assert_user_signed_in(env=Environment.FIREFOX)
+
+        self._set_child_bool_pref(PREF_PROMPT_ON_SIGNOUT, True)
+        self._set_child_bool_pref(PREF_WARN_ON_CLOSE, False)
+
+        self._trigger_browser_closure()
+        self._wait_for_close_dialog()
+        self._cancel_close_dialog()
+        self._wait_for_close_dialog_dismissed()
+
+        self._child_driver.set_context("content")
+        self._child_driver.execute_script("return true;")
+        # Allow teardown to close the browser normally since it is still open.
+        self._manually_closed_child = False
+
+    def test_browser_window_close_two_windows_shows_enterprise_dialog(self):
+        """Closing two windows with multiple tabs simultaneously shows a single
+        enterprise dialog, not two independent dialogs (one enterprise, one
+        standard tab warning)."""
+        self.run_felt_base()
+        self.connect_child_browser()
+        self.assert_user_signed_in(env=Environment.FIREFOX)
+
+        self._set_child_bool_pref(PREF_PROMPT_ON_SIGNOUT, False)
+        self._set_child_bool_pref(PREF_WARN_ON_CLOSE, True)
+
+        # Both windows need multiple tabs so warnAboutClosingTabs would show a
+        # dialog independently if the race is not handled correctly.
+        self.open_tab_child("about:blank")
+
+        self._child_driver.set_context("chrome")
+        initial_handles = set(self._child_driver.chrome_window_handles)
+        self._child_driver.execute_script("OpenBrowserWindow();")
+
+        def get_new_handle(_):
+            current = set(self._child_driver.chrome_window_handles)
+            new = current - initial_handles
+            return new.pop() if new else None
+
+        second_handle = self._child_wait.until(get_new_handle)
+        self._child_driver.switch_to_window(second_handle)
+        self._child_driver.set_context("content")
+        self.open_tab_child("about:blank")
+
+        self._manually_closed_child = True
+        self._child_driver.set_context("chrome")
+        # Close both windows in the same event-loop turn to reproduce the race.
+        self._child_driver.execute_async_script(
+            """
+            const [resolve] = arguments;
+            const wins = [...Services.wm.getEnumerator('navigator:browser')];
+            wins.forEach(win => win.close());
+            resolve();
+            """
+        )
+
+        self._switch_to_window_with_close_dialog()
+        self._accept_close_dialog()
         self._wait_for_child_browser_closed()
         self.assert_child_browser_closed()
 

@@ -1565,13 +1565,13 @@ BrowserGlue.prototype = {
       if (lazy.EnterpriseHandler.shouldShowClosePrompt()) {
         aCancelQuit.QueryInterface(Ci.nsISupportsPRBool).data = true;
         this._quitSource = "unknown";
-        const promptWindow = lazy.BrowserWindowTracker.getTopWindow({
-          allowFromInactiveWorkspace: true,
-        });
-        lazy.EnterpriseHandler.showSignoutPrompt(promptWindow)
+        // Pass null so showSignoutPrompt picks the right window after its
+        // localization await. Use eForceQuit to avoid re-entering _onQuitRequest,
+        // which would open the standard warnOnClose dialog over the enterprise one.
+        lazy.EnterpriseHandler.showSignoutPrompt(null)
           .then(proceed => {
             if (proceed) {
-              Services.startup.quit(Ci.nsIAppStartup.eAttemptQuit);
+              Services.startup.quit(Ci.nsIAppStartup.eForceQuit);
             }
           })
           .catch(e => {
