@@ -178,7 +178,7 @@ class BrowserCloseWarning(FeltTests):
 
     def test_prompt_on_signout_default_is_true(self):
         """enterprise.prompt_on_signout must have a registered default of true."""
-        super().run_felt_base()
+        self.run_felt_base()
         self.connect_child_browser()
 
         self._child_driver.set_context("chrome")
@@ -199,7 +199,7 @@ class BrowserCloseWarning(FeltTests):
 
     def test_browser_window_close_signout_warning_only(self):
         """Sign-out warn on, tabs warn off, single tab - enterprise signout dialog shows."""
-        super().run_felt_base()
+        self.run_felt_base()
         self.connect_child_browser()
         self.assert_user_signed_in(env=Environment.FIREFOX)
 
@@ -219,7 +219,7 @@ class BrowserCloseWarning(FeltTests):
 
     def test_browser_window_close_with_both_warnings(self):
         """Sign-out warn on, tabs warn on, multiple tabs open - enterprise dialog with tabs count shown."""
-        super().run_felt_base()
+        self.run_felt_base()
         self.connect_child_browser()
         self.assert_user_signed_in(env=Environment.FIREFOX)
 
@@ -240,7 +240,7 @@ class BrowserCloseWarning(FeltTests):
 
     def test_browser_window_close_tabs_warning_only(self):
         """Sign-out warn off, tabs warn on, multiple tabs - dialog shows tabs-only variant."""
-        super().run_felt_base()
+        self.run_felt_base()
         self.connect_child_browser()
         self.assert_user_signed_in(env=Environment.FIREFOX)
 
@@ -260,7 +260,7 @@ class BrowserCloseWarning(FeltTests):
 
     def test_browser_window_close_no_warnings(self):
         """Sign-out warn off, tabs warn off - no dialog, quit proceeds directly."""
-        super().run_felt_base()
+        self.run_felt_base()
         self.connect_child_browser()
         self.assert_user_signed_in(env=Environment.FIREFOX)
 
@@ -274,7 +274,7 @@ class BrowserCloseWarning(FeltTests):
 
     def test_browser_window_close_no_warnings_multiple_tabs(self):
         """Sign-out warn off, tabs warn off, multiple tabs - no dialog, quit proceeds."""
-        super().run_felt_base()
+        self.run_felt_base()
         self.connect_child_browser()
         self.assert_user_signed_in(env=Environment.FIREFOX)
 
@@ -290,7 +290,7 @@ class BrowserCloseWarning(FeltTests):
     def test_browser_close_no_windows_shows_standalone_dialog(self):
         """macOS no-window: quitting with no browser windows shows a standalone
         enterprise dialog instead of crashing."""
-        super().run_felt_base()
+        self.run_felt_base()
         self.connect_child_browser()
         self.assert_user_signed_in(env=Environment.FIREFOX)
 
