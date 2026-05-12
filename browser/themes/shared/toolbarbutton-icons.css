@@ -389,7 +389,7 @@
   }
   > .toolbarbutton-icon {
     list-style-image: url("chrome://browser/content/ipprotection/assets/ac-icon.svg");
-    width: calc(2 * var(--toolbarbutton-inner-padding) + 16px);
+    width: calc(2 * var(--toolbarbutton-padding-inner) + 16px);
   }
   &.ipprotection-on {
     > .toolbarbutton-icon {
