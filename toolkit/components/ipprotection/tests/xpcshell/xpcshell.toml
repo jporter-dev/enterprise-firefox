@@ -33,4 +33,10 @@ prefs = [
 
 ["test_IPProtectionStates.js"]
 
+# On non-enterprise builds IPProtectionServerlist is RemoteSettingsServerlist and
+# ignores the pref-based server list set up in add_setup, so hasList stays false
+# and proxy activation tests time out.
+["test_IPPAlwaysOn.js"]
+run-if = ["enterprise"]
+
 ["test_IPProxyManager.js"]
