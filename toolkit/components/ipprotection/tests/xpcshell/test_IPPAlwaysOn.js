@@ -171,6 +171,43 @@ add_task(async function test_proxy_restarts_on_unexpected_stop() {
   sandbox.restore();
 });
 
+add_task(async function test_proxy_not_restarted_during_policy_removal() {
+  const sandbox = sinon.createSandbox();
+  setupStubs(sandbox);
+
+  // Mirror what happens when the AccessConnector policy is removed live:
+  // _activatePolicies clears _parsedPolicies (so alwaysOnEnabled is already
+  // false) before onRemove runs, then onRemove's first
+  // unsetAndUnlockPref("browser.ipProtection.enabled") synchronously triggers
+  // the uninit cascade. IPPProxyManager.uninit() runs before IPPAlwaysOn's,
+  // and its stop() fires an ACTIVE->READY transition while our listeners are
+  // still attached — which used to trigger a zombie #tryStart().
+  const alwaysOn = new IPPAlwaysOnSingleton();
+  let policyActive = true;
+  sandbox.stub(alwaysOn, "alwaysOnEnabled").get(() => policyActive);
+  registerAsHelper(alwaysOn);
+
+  const waitForActive = waitForEvent(
+    IPPProxyManager,
+    "IPPProxyManager:StateChanged",
+    () => IPPProxyManager.state === IPPProxyStates.ACTIVE
+  );
+  IPProtectionService.init();
+  await waitForActive;
+
+  policyActive = false;
+  IPProtectionService.uninit();
+
+  Assert.notEqual(
+    IPPProxyManager.state,
+    IPPProxyStates.ACTIVATING,
+    "Proxy must not restart during the policy-removal uninit cascade"
+  );
+
+  restoreHelpers();
+  sandbox.restore();
+});
+
 add_task(async function test_proxy_not_restarted_when_service_unavailable() {
   const sandbox = sinon.createSandbox();
   setupStubs(sandbox);

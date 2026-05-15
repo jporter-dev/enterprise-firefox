@@ -50,11 +50,6 @@ class IPPAlwaysOnSingleton {
     this.handleServerlistEvent = this.#handleServerlistEvent.bind(this);
   }
 
-  /**
-   * True when the AccessConnector policy is active.
-   *
-   * @returns {boolean}
-   */
   get alwaysOnEnabled() {
     return !!Services.policies.getActivePolicies()?.AccessConnector;
   }
@@ -149,7 +144,10 @@ class IPPAlwaysOnSingleton {
   }
 
   #handleProxyEvent() {
-    if (!this.#shouldBeRunning) {
+    // alwaysOnEnabled flips to false synchronously when the policy is removed,
+    // before uninit() runs. Bail out so we don't restart in response to the
+    // ACTIVE->READY transition produced by teardown.
+    if (!this.#shouldBeRunning || !this.alwaysOnEnabled) {
       return;
     }
 
@@ -167,7 +165,7 @@ class IPPAlwaysOnSingleton {
         this.#startPending = false;
         lazy.IPPProxyManager.stop(false).then(
           () => {
-            if (this.#shouldBeRunning) {
+            if (this.#shouldBeRunning && this.alwaysOnEnabled) {
               this.#tryStart();
             }
           },
@@ -181,9 +179,11 @@ class IPPAlwaysOnSingleton {
   }
 
   #handleServerlistEvent() {
+    if (!this.alwaysOnEnabled) {
+      return;
+    }
     if (!lazy.IPProtectionServerlist.hasList) {
-      // Serverlist was cleared (e.g. policy removed). Stop any active
-      // connection so we don't try to connect to a server that no longer exists.
+      // Serverlist cleared (e.g. policy removed); stop any active connection.
       const state = lazy.IPPProxyManager.state;
       if (
         state === lazy.IPPProxyStates.ACTIVE ||
@@ -196,14 +196,13 @@ class IPPAlwaysOnSingleton {
     const state = lazy.IPPProxyManager.state;
     switch (state) {
       case lazy.IPPProxyStates.ACTIVE: {
-        // Switch to a server from the updated list without dropping the connection.
+        // Hot-swap without dropping the connection.
         lazy.logConsole.debug("Switching to updated server");
         const { error } = lazy.IPPProxyManager.switch();
         if (error) {
-          // switch() failed (e.g. new server is invalid); stop and restart.
           lazy.IPPProxyManager.stop(false).then(
             () => {
-              if (this.#shouldBeRunning) {
+              if (this.#shouldBeRunning && this.alwaysOnEnabled) {
                 this.#tryStart();
               }
             },
@@ -218,7 +217,7 @@ class IPPAlwaysOnSingleton {
         if (this.#shouldBeRunning) {
           lazy.IPPProxyManager.stop(false).then(
             () => {
-              if (this.#shouldBeRunning) {
+              if (this.#shouldBeRunning && this.alwaysOnEnabled) {
                 this.#tryStart();
               }
             },
