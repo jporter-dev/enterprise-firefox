@@ -157,15 +157,12 @@ class BrowserAccessConnector(FeltTests):
         assert not state["browser.ipProtection.features.autoStart"]["isLocked"]
         assert not state["browser.ipProtection.autoStartEnabled"]["value"]
         assert not state["browser.ipProtection.autoStartEnabled"]["isLocked"]
-        # Bug 2036744: This is likely not correct? Value is still == 3
-        # assert state["browser.ipProtection.mode"]["value"] == 3
         assert not state["browser.ipProtection.mode"]["isLocked"]
-        # Bug 2036744: This is likely not correct? value is not ""
-        # assert state["browser.ipProtection.override.serverlist"]["value"] == ""
+        assert not state["browser.ipProtection.mode"]["value"]
         assert not state["browser.ipProtection.override.serverlist"]["isLocked"]
-        # Bug 2036744: This is likely not correct? value is not ""
-        # assert state["browser.ipProtection.inclusion.match_patterns"]["value"] == ""
+        assert not state["browser.ipProtection.override.serverlist"]["value"]
         assert not state["browser.ipProtection.inclusion.match_patterns"]["isLocked"]
+        assert not state["browser.ipProtection.inclusion.match_patterns"]["value"]
         assert not state["browser.ipProtection.openedPanelWithLocation"]["value"]
         assert not state["browser.ipProtection.openedPanelWithLocation"]["isLocked"]
         assert not state["browser.ipProtection.enabled"]["value"]
