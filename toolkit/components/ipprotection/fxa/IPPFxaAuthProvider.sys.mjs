@@ -2,7 +2,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { AppConstants } from "resource://gre/modules/AppConstants.sys.mjs";
 import { IPPFxaBaseAuthProvider } from "moz-src:///toolkit/components/ipprotection/fxa/IPPFxaBaseAuthProvider.sys.mjs";
 import { GUARDIAN_EXPERIMENT_TYPE } from "moz-src:///toolkit/components/ipprotection/fxa/GuardianClient.sys.mjs";
 
@@ -111,10 +110,6 @@ class IPPFxaAuthProviderSingleton extends IPPFxaBaseAuthProvider {
   }
 
   async #isLinkedToGuardian(useCache = true) {
-    if (AppConstants.MOZ_ENTERPRISE) {
-      return true;
-    }
-
     try {
       const endpoint = Services.prefs.getCharPref(
         GUARDIAN_ENDPOINT_PREF,

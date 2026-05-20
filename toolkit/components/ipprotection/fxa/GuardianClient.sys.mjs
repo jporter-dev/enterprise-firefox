@@ -2,7 +2,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { AppConstants } from "resource://gre/modules/AppConstants.sys.mjs";
 import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
 import {
   Entitlement,
@@ -222,14 +221,6 @@ export class GuardianClient {
    * - 401: The auth token was rejected, probably a guardian/auth provider environment mismatch.
    */
   async fetchUserInfo(tokenHandle, abortSignal = null) {
-    if (AppConstants.MOZ_ENTERPRISE) {
-      const entitlement = new Entitlement({
-        subscribed: true,
-        uid: 1,
-        maxBytes: "1000000",
-      });
-      return { status: 200, entitlement };
-    }
     const response = await fetch(this.#statusURL, {
       method: "GET",
       headers: {
@@ -265,15 +256,6 @@ export class GuardianClient {
    * @returns {ProxyUsage | null}
    */
   async fetchProxyUsage(tokenHandle, abortSignal) {
-    if (AppConstants.MOZ_ENTERPRISE) {
-      return new ProxyUsage(
-        "1000000",
-        "1000000",
-        Temporal.Now.zonedDateTimeISO()
-          .add(Temporal.Duration.from({ days: 30 }))
-          .toString()
-      );
-    }
     const response = await fetch(this.#tokenURL, {
       method: "HEAD",
       cache: "no-cache",
