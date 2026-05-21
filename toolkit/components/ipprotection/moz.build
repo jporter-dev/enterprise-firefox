@@ -14,13 +14,13 @@ if CONFIG["MOZ_WIDGET_TOOLKIT"] == "android":
 
 if CONFIG["MOZ_ENTERPRISE"]:
     MOZ_SRC_FILES += [
-        "enterprise/IPPEnterpriseAuthProvider.sys.mjs",
         "enterprise/IPPAlwaysOn.sys.mjs",
+        "enterprise/IPPEnterpriseAuthProvider.sys.mjs",
     ]
 
 TESTING_JS_MODULES.ipprotection += [
-    "enterprise/IPPEnterpriseAuthProvider.sys.mjs",
     "enterprise/IPPAlwaysOn.sys.mjs",
+    "enterprise/IPPEnterpriseAuthProvider.sys.mjs",
     "gpi/IPPGpiAuthProvider.sys.mjs",
 ]
 
@@ -35,6 +35,7 @@ MOZ_SRC_FILES += [
     "IPPAutoRestore.sys.mjs",
     "IPPAutoStart.sys.mjs",
     "IPPChannelFilter.sys.mjs",
+    "IPPEarlyStartupFilter.sys.mjs",
     "IPPExceptionsManager.sys.mjs",
     "IPPNetworkErrorObserver.sys.mjs",
     "IPPNetworkUtils.sys.mjs",

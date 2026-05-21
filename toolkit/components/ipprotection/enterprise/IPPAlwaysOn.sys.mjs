@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { PrivateBrowsingUtils } from "resource://gre/modules/PrivateBrowsingUtils.sys.mjs";
+import { IPPEarlyStartupFilter } from "moz-src:///toolkit/components/ipprotection/IPPEarlyStartupFilter.sys.mjs";
 
 const lazy = {};
 
@@ -109,7 +110,10 @@ class IPPAlwaysOnSingleton {
     if (this.#startPending) {
       return;
     }
-    if (lazy.IPPProxyManager.state === lazy.IPPProxyStates.ACTIVE) {
+    if (
+      lazy.IPPProxyManager.state === lazy.IPPProxyStates.ACTIVE &&
+      lazy.IPPProxyManager.channelFilter()?.proxyInfo
+    ) {
       return;
     }
     if (!lazy.IPProtectionServerlist.hasList) {
@@ -240,72 +244,9 @@ class IPPAlwaysOnSingleton {
 
 const IPPAlwaysOn = new IPPAlwaysOnSingleton();
 
-/**
- * Registers the channel filter at startup to prevent data leaks before the
- * proxy connection is fully established in always-on mode. Mirrors
- * IPPEarlyStartupFilter from IPPAutoStart but uses the AlwaysOn policy check.
- */
-class IPPAlwaysOnEarlyStartupFilter {
-  #alwaysOnAtStartup = false;
-
-  constructor() {
-    this.handleEvent = this.#handleEvent.bind(this);
-  }
-
-  init() {
-    if (!IPPAlwaysOn.alwaysOnEnabled) {
-      return;
-    }
-    this.#alwaysOnAtStartup = true;
-
-    lazy.IPPProxyManager.createChannelFilter();
-
-    lazy.IPProtectionService.addEventListener(
-      "IPProtectionService:StateChanged",
-      this.handleEvent
-    );
-    lazy.IPPProxyManager.addEventListener(
-      "IPPProxyManager:StateChanged",
-      this.handleEvent
-    );
-  }
-
-  initOnStartupCompleted() {}
-
-  uninit() {
-    if (!this.#alwaysOnAtStartup) {
-      return;
-    }
-    this.#alwaysOnAtStartup = false;
-
-    lazy.IPPProxyManager.removeEventListener(
-      "IPPProxyManager:StateChanged",
-      this.handleEvent
-    );
-    lazy.IPProtectionService.removeEventListener(
-      "IPProtectionService:StateChanged",
-      this.handleEvent
-    );
-  }
-
-  #handleEvent() {
-    switch (lazy.IPProtectionService.state) {
-      case lazy.IPProtectionStates.UNAVAILABLE:
-      case lazy.IPProtectionStates.UNAUTHENTICATED:
-        lazy.IPPProxyManager.cancelChannelFilter();
-        this.uninit();
-        break;
-
-      default:
-        break;
-    }
-
-    if (lazy.IPPProxyManager.state === lazy.IPPProxyStates.ACTIVE) {
-      this.uninit();
-    }
-  }
-}
-
-const IPPAlwaysOnHelpers = [IPPAlwaysOn, new IPPAlwaysOnEarlyStartupFilter()];
+const IPPAlwaysOnHelpers = [
+  IPPAlwaysOn,
+  new IPPEarlyStartupFilter(() => IPPAlwaysOn.alwaysOnEnabled),
+];
 
 export { IPPAlwaysOnHelpers, IPPAlwaysOnSingleton };

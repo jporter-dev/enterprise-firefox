@@ -6,6 +6,9 @@ https://creativecommons.org/publicdomain/zero/1.0/ */
 const { IPPAlwaysOnSingleton } = ChromeUtils.importESModule(
   "moz-src:///toolkit/components/ipprotection/enterprise/IPPAlwaysOn.sys.mjs"
 );
+const { IPPEarlyStartupFilter } = ChromeUtils.importESModule(
+  "moz-src:///toolkit/components/ipprotection/IPPEarlyStartupFilter.sys.mjs"
+);
 const { IPProtectionServerlist, PrefServerList } = ChromeUtils.importESModule(
   "moz-src:///toolkit/components/ipprotection/IPProtectionServerlist.sys.mjs"
 );
@@ -120,6 +123,56 @@ add_task(async function test_proxy_starts_on_service_ready() {
   );
 
   alwaysOn.uninit();
+  await IPPProxyManager.stop(false);
+  IPProtectionService.uninit();
+  restoreHelpers();
+  sandbox.restore();
+});
+
+add_task(async function test_proxy_starts_when_early_filter_marked_active() {
+  const sandbox = sinon.createSandbox();
+  setupStubs(sandbox);
+
+  // Regression test for a bug where IPPProxyManager.updateState() transitioned
+  // proxy state to ACTIVE solely because IPPEarlyStartupFilter had registered
+  // the channel filter (connection.active === true), before start() had ever
+  // been called and before proxyInfo was initialized. IPPAlwaysOn's tryStart()
+  // saw state === ACTIVE and bailed, so start() was never invoked, proxyInfo
+  // stayed null, and any channel matching the inclusion patterns was queued
+  // in #pendingChannels forever — pages hung indefinitely.
+  //
+  // The fix: tryStart() distinguishes "filter registered" from "truly active"
+  // by also checking channelFilter()?.proxyInfo before bailing on ACTIVE.
+  const alwaysOn = makeAlwaysOn(sandbox);
+  const earlyFilter = new IPPEarlyStartupFilter(() => alwaysOn.alwaysOnEnabled);
+  IPProtectionActivator.addHelpers([alwaysOn, earlyFilter]);
+  IPProtectionActivator.setupHelpers();
+
+  // Wait for the *real* ACTIVE — both state ACTIVE and proxyInfo set. The
+  // premature ACTIVE (filter-registered only) would also fire StateChanged
+  // with state === ACTIVE, but with proxyInfo still null.
+  const waitForTrulyActive = waitForEvent(
+    IPPProxyManager,
+    "IPPProxyManager:StateChanged",
+    () =>
+      IPPProxyManager.state === IPPProxyStates.ACTIVE &&
+      !!IPPProxyManager.channelFilter()?.proxyInfo
+  );
+  IPProtectionService.init();
+  await waitForTrulyActive;
+
+  Assert.equal(
+    IPPProxyManager.state,
+    IPPProxyStates.ACTIVE,
+    "Proxy should be ACTIVE"
+  );
+  Assert.ok(
+    IPPProxyManager.channelFilter()?.proxyInfo,
+    "Proxy should be fully initialized — proxyInfo set, not just filter-registered"
+  );
+
+  alwaysOn.uninit();
+  earlyFilter.uninit();
   await IPPProxyManager.stop(false);
   IPProtectionService.uninit();
   restoreHelpers();

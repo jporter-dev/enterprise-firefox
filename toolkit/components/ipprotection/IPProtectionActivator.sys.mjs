@@ -26,9 +26,9 @@ const coreHelpers = [
   IPProtectionServerlist,
   IPPProxyManager,
   IPPSessionPrefManager,
-  IPPAutoRestoreHelper,
-  ...IPPAutoStartHelpers,
-  ...(AppConstants.MOZ_ENTERPRISE ? lazy.IPPAlwaysOnHelpers : []),
+  ...(AppConstants.MOZ_ENTERPRISE
+    ? lazy.IPPAlwaysOnHelpers
+    : [IPPAutoRestoreHelper, ...IPPAutoStartHelpers]),
   IPPNimbusHelper,
 ];
 
