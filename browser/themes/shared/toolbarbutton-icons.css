@@ -384,7 +384,11 @@
   }
   > .toolbarbutton-icon {
     list-style-image: url("chrome://browser/content/ipprotection/assets/ac-icon.svg");
-    width: calc(2 * var(--toolbarbutton-padding-inner) + 16px);
+  }
+  &:not(:is([overflowedItem="true"], [cui-areatype="panel"])) {
+    > .toolbarbutton-icon {
+      width: calc(2 * var(--toolbarbutton-padding-inner) + var(--icon-width));
+    }
   }
   &.ipprotection-on {
     > .toolbarbutton-icon {
