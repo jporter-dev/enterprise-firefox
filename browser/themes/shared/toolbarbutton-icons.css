@@ -387,7 +387,7 @@
   }
   &:not(:is([overflowedItem="true"], [cui-areatype="panel"])) {
     > .toolbarbutton-icon {
-      width: calc(2 * var(--toolbarbutton-padding-inner) + var(--icon-width));
+      width: calc(2 * var(--toolbarbutton-padding-inner) + var(--icon-size-small));
     }
   }
   &.ipprotection-on {
