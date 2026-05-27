@@ -642,23 +642,8 @@ export class IPProtectionPanel {
       return null;
     }
 
-    let headerArea = panelView.querySelector(
-      `#${IPProtectionPanel.HEADER_AREA_ID}`
-    );
-    let headerButton = headerArea.querySelector(
-      `#${IPProtectionPanel.HEADER_BUTTON_ID}`
-    );
-
-    if (!headerButton) {
-      headerButton = this.#createHeaderButton(ownerDocument);
-      headerArea.appendChild(headerButton);
-    }
-
-    if (AppConstants.MOZ_ENTERPRISE) {
-      headerButton.replaceWith(
-        this.#createAccessConnectorStatusLabel(ownerDocument)
-      );
-    }
+    let headerButton = panelView.querySelector(".panel-info-button");
+    if (headerButton) {
 
       headerButton.addEventListener("click", IPProtectionPanel.showHelpPage);
       headerButton.addEventListener(
@@ -674,41 +659,6 @@ export class IPProtectionPanel {
     contentArea.appendChild(contentEl);
     this.components.add(contentEl);
     return contentEl;
-  }
-
-  #createAccessConnectorStatusLabel(ownerDocument) {
-    const statusLabel = ownerDocument.createXULElement("label");
-
-    statusLabel.id = IPProtectionPanel.HEADER_BUTTON_ID;
-    statusLabel.className = "panel-info-button";
-
-    ownerDocument.l10n.setAttributes(
-      statusLabel,
-      (this.state?.siteData?.isInclusion ?? false)
-        ? "enterprise-access-connector-status-label-active"
-        : "enterprise-access-connector-status-label-inactive"
-    );
-    return statusLabel;
-  }
-
-  #createHeaderButton(ownerDocument) {
-    const headerButton = ownerDocument.createElement("moz-button");
-
-    headerButton.id = IPProtectionPanel.HEADER_BUTTON_ID;
-    headerButton.className = "panel-info-button";
-    headerButton.dataset.capturesFocus = "true";
-    headerButton.type = "ghost";
-    headerButton.iconSrc = "chrome://global/skin/icons/info.svg";
-    headerButton.size = "small";
-
-    ownerDocument.l10n.setAttributes(headerButton, "ipprotection-help-button");
-    headerButton.addEventListener("click", IPProtectionPanel.showHelpPage);
-    headerButton.addEventListener("keypress", e => {
-      if (e.code == "Space" || e.code == "Enter") {
-        IPProtectionPanel.showHelpPage(e);
-      }
-    });
-    return headerButton;
   }
 
   /**
