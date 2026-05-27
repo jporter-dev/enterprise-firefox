@@ -2,8 +2,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { AppConstants } from "resource://gre/modules/AppConstants.sys.mjs";
-
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
@@ -62,7 +60,6 @@ class IPProtectionWidget {
     if (!this.created) {
       this.#createWidget();
     }
-
     lazy.CustomizableUI.addListener(this);
   }
 
@@ -73,12 +70,11 @@ class IPProtectionWidget {
     if (!this.#inited) {
       return;
     }
-    this.#destroyWidget();
-    this.#uninitPanels();
-
-    lazy.CustomizableUI.removeListener(this);
-
     this.#inited = false;
+
+    this.#destroyWidget();
+    lazy.CustomizableUI.removeListener(this);
+    this.#uninitPanels();
   }
 
   /**
@@ -118,21 +114,8 @@ class IPProtectionWidget {
 
   /**
    * Places the widget in the nav bar, next to the FxA widget.
-   * Skipped in enterprise builds where the Access Connector UI uses a urlbar button instead.
    */
   #placeWidget() {
-    if (AppConstants.MOZ_ENTERPRISE) {
-      const placement = lazy.CustomizableUI.getPlacementOfWidget(
-        IPProtectionWidget.WIDGET_ID,
-        false,
-        true
-      );
-      if (placement) {
-        lazy.CustomizableUI.removeWidgetFromArea(IPProtectionWidget.WIDGET_ID);
-      }
-      return;
-    }
-
     let wasAddedToToolbar = Services.prefs.getBoolPref(
       IPProtectionWidget.ADDED_PREF,
       false
