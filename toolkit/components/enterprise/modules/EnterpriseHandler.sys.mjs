@@ -211,6 +211,9 @@ export const EnterpriseHandler = {
    */
   _initAccessConnectorButton(window) {
     const button = window.document.getElementById("access-connector-button");
+    if (!button) {
+      return;
+    }
 
     const updateButtonState = () => {
       const principal = window.gBrowser.selectedBrowser?.contentPrincipal;
@@ -230,8 +233,11 @@ export const EnterpriseHandler = {
     });
 
     const handleLocationChange = {
-      onLocationChange(webProgress, _request, _location, flags) {
+      onLocationChange(browser, webProgress, _request, _location, flags) {
         if (!webProgress.isTopLevel) {
+          return;
+        }
+        if (browser !== window.gBrowser.selectedBrowser) {
           return;
         }
         const isSameDocument =
@@ -243,19 +249,26 @@ export const EnterpriseHandler = {
       },
     };
 
-    window.gBrowser.addProgressListener(handleLocationChange);
+    window.gBrowser.addTabsProgressListener(handleLocationChange);
+    window.gBrowser.tabContainer.addEventListener("TabSelect", updateButtonState);
 
     lazy.IPPProxyManager.addEventListener(
       "IPPProxyManager:StateChanged",
       updateButtonState
     );
 
+    updateButtonState();
+
     window.addEventListener("unload", () => {
       lazy.IPPProxyManager.removeEventListener(
         "IPPProxyManager:StateChanged",
         updateButtonState
       );
-      window.gBrowser.removeProgressListener(handleLocationChange);
+      window.gBrowser.removeTabsProgressListener(handleLocationChange);
+      window.gBrowser.tabContainer.removeEventListener(
+        "TabSelect",
+        updateButtonState
+      );
     });
   },
 
