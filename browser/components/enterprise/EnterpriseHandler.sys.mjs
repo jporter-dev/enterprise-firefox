@@ -12,10 +12,10 @@ ChromeUtils.defineLazyGetter(lazy, "localization", () => {
 });
 
 ChromeUtils.defineESModuleGetters(lazy, {
+  AccessConnectorButton:
+    "resource:///modules/enterprise/AccessConnectorButton.sys.mjs",
   BrowserUtils: "resource://gre/modules/BrowserUtils.sys.mjs",
   ConsoleClient: "resource:///modules/enterprise/ConsoleClient.sys.mjs",
-  IPPProxyManager:
-    "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
   isTesting: "resource:///modules/enterprise/EnterpriseCommon.sys.mjs",
   createEnterpriseLogger:
     "resource:///modules/enterprise/EnterpriseCommon.sys.mjs",
@@ -210,66 +210,8 @@ export const EnterpriseHandler = {
    * @param {Window} window chrome window
    */
   _initAccessConnectorButton(window) {
-    const button = window.document.getElementById("access-connector-button");
-    if (!button) {
-      return;
-    }
-
-    const updateButtonState = () => {
-      const principal = window.gBrowser.selectedBrowser?.contentPrincipal;
-      let isProtected = false;
-      try {
-        isProtected = principal
-          ? lazy.IPPProxyManager.isProtected(principal)
-          : false;
-      } catch (e) {
-        lazy.log.warn("Failed to check access connector state for URI: ", e);
-      }
-      button.hidden = !isProtected;
-    };
-
-    button.addEventListener("click", event => {
-      window.PanelUI.showSubView("panelUI-access-connector", button, event);
-    });
-
-    const handleLocationChange = {
-      onLocationChange(browser, webProgress, _request, _location, flags) {
-        if (!webProgress.isTopLevel) {
-          return;
-        }
-        if (browser !== window.gBrowser.selectedBrowser) {
-          return;
-        }
-        const isSameDocument =
-          flags & Ci.nsIWebProgressListener.LOCATION_CHANGE_SAME_DOCUMENT;
-        if (isSameDocument) {
-          return;
-        }
-        updateButtonState();
-      },
-    };
-
-    window.gBrowser.addTabsProgressListener(handleLocationChange);
-    window.gBrowser.tabContainer.addEventListener("TabSelect", updateButtonState);
-
-    lazy.IPPProxyManager.addEventListener(
-      "IPPProxyManager:StateChanged",
-      updateButtonState
-    );
-
-    updateButtonState();
-
-    window.addEventListener("unload", () => {
-      lazy.IPPProxyManager.removeEventListener(
-        "IPPProxyManager:StateChanged",
-        updateButtonState
-      );
-      window.gBrowser.removeTabsProgressListener(handleLocationChange);
-      window.gBrowser.tabContainer.removeEventListener(
-        "TabSelect",
-        updateButtonState
-      );
-    });
+    const button = new lazy.AccessConnectorButton(window);
+    window.addEventListener("unload", () => button.uninit(), { once: true });
   },
 
   /**
