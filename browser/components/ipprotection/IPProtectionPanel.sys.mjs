@@ -644,7 +644,6 @@ export class IPProtectionPanel {
 
     let headerButton = panelView.querySelector(".panel-info-button");
     if (headerButton) {
-
       headerButton.addEventListener("click", IPProtectionPanel.showHelpPage);
       headerButton.addEventListener(
         "keypress",
