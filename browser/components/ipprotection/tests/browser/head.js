@@ -40,10 +40,9 @@ const { NimbusTestUtils } = ChromeUtils.importESModule(
   "resource://testing-common/NimbusTestUtils.sys.mjs"
 );
 
-const { IPProtectionServerlist, PrefServerList, Server } =
-  ChromeUtils.importESModule(
-    "moz-src:///toolkit/components/ipprotection/IPProtectionServerlist.sys.mjs"
-  );
+const { PrefServerList, Server } = ChromeUtils.importESModule(
+  "moz-src:///toolkit/components/ipprotection/IPProtectionServerlist.sys.mjs"
+);
 
 ChromeUtils.defineESModuleGetters(this, {
   sinon: "resource://testing-common/Sinon.sys.mjs",
@@ -547,7 +546,6 @@ async function putServerInRemoteSettings(
       PrefServerList.PREF_NAME,
       JSON.stringify([US])
     );
-    await IPProtectionServerlist.maybeFetchList(true);
     return;
   }
   const client = RemoteSettings("vpn-serverlist");

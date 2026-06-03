@@ -186,10 +186,6 @@ add_task(async function test_ipprotectionPrompts() {
 });
 
 add_task(async function test_continueWithoutVPN() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise renders a different panel template without the paused state UI.
-    return;
-  }
   IPProtectionAlertManager.init();
   setupService({
     isReady: true,
@@ -274,10 +270,6 @@ add_task(async function test_continueWithoutVPN() {
 });
 
 add_task(async function test_closeAllTabs() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise renders a different panel template without the paused state UI.
-    return;
-  }
   IPProtectionAlertManager.init();
   setupService({
     isReady: true,
@@ -440,10 +432,6 @@ add_task(
 
 add_task(
   async function test_telemetry_alert_button_clicked_paused_continueWithoutVPN() {
-    if (AppConstants.MOZ_ENTERPRISE) {
-      // Enterprise doesn't enter a paused state; the continue-without-VPN flow doesn't exist.
-      return;
-    }
     Services.fog.testResetFOG();
     await Services.fog.testFlushAllChildren();
 

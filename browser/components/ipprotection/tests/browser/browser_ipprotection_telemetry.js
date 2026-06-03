@@ -30,10 +30,6 @@ async function resetStateToObj(content, originalState) {
  * is turned on or off
  */
 add_task(async function user_start_and_stop() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise has no user-facing proxy toggle, so userAction: true telemetry cannot occur.
-    return;
-  }
   let button = document.getElementById(IPProtectionWidget.WIDGET_ID);
   Assert.ok(
     BrowserTestUtils.isVisible(button),
@@ -163,10 +159,6 @@ add_task(async function start_in_private_browsing() {
  * Tests that the click upgrade button event is recorded when CTA is clicked
  */
 add_task(async function click_upgrade_button() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise has no upgrade/paused flow; the upgrade CTA is never rendered.
-    return;
-  }
   let button = document.getElementById(IPProtectionWidget.WIDGET_ID);
   Assert.ok(
     BrowserTestUtils.isVisible(button),
@@ -254,11 +246,6 @@ add_task(async function test_error_state() {
  * turns off at browser shutdown
  */
 add_task(async function stop_on_shutdown() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise activates VPN differently (Access Connector, not user-initiated),
-    // so the shutdown telemetry path tested here does not apply.
-    return;
-  }
   let button = document.getElementById(IPProtectionWidget.WIDGET_ID);
   Assert.ok(
     BrowserTestUtils.isVisible(button),
@@ -375,10 +362,6 @@ add_task(async function removed_from_toolbar() {
  * is used to add or remove a site exclusion
  */
 add_task(async function test_exclusion_toggled() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise has no site exclusion feature.
-    return;
-  }
   const PERM_NAME = "ipp-vpn";
   Services.perms.removeByType(PERM_NAME);
   lazy.IPPExceptionsManager.init();
@@ -434,61 +417,54 @@ add_task(async function test_exclusion_toggled() {
  * Tests that the exclusion_added counter is incremented when site exclusions
  * are added
  */
-add_task(
-  { skip_if: () => AppConstants.MOZ_ENTERPRISE },
-  async function test_exclusion_added() {
-    const PERM_NAME = "ipp-vpn";
-    Services.perms.removeByType(PERM_NAME);
+add_task(async function test_exclusion_added() {
+  const PERM_NAME = "ipp-vpn";
+  Services.perms.removeByType(PERM_NAME);
 
-    lazy.IPPExceptionsManager.init();
-    Services.fog.testResetFOG();
+  lazy.IPPExceptionsManager.init();
+  Services.fog.testResetFOG();
 
-    const site1 = "https://www.example.com";
-    const site2 = "https://www.another.example.com";
+  const site1 = "https://www.example.com";
+  const site2 = "https://www.another.example.com";
 
-    let principal1 =
-      Services.scriptSecurityManager.createContentPrincipalFromOrigin(site1);
-    let principal2 =
-      Services.scriptSecurityManager.createContentPrincipalFromOrigin(site2);
+  let principal1 =
+    Services.scriptSecurityManager.createContentPrincipalFromOrigin(site1);
+  let principal2 =
+    Services.scriptSecurityManager.createContentPrincipalFromOrigin(site2);
 
-    // Add first exclusion
-    lazy.IPPExceptionsManager.setExclusion(principal1, true);
-    Assert.equal(
-      Glean.ipprotection.exclusionAdded.testGetValue(),
-      1,
-      "should have counted 1 exclusion added"
-    );
+  // Add first exclusion
+  lazy.IPPExceptionsManager.setExclusion(principal1, true);
+  Assert.equal(
+    Glean.ipprotection.exclusionAdded.testGetValue(),
+    1,
+    "should have counted 1 exclusion added"
+  );
 
-    // Add second exclusion
-    lazy.IPPExceptionsManager.setExclusion(principal2, true);
-    Assert.equal(
-      Glean.ipprotection.exclusionAdded.testGetValue(),
-      2,
-      "should have counted 2 exclusions added"
-    );
+  // Add second exclusion
+  lazy.IPPExceptionsManager.setExclusion(principal2, true);
+  Assert.equal(
+    Glean.ipprotection.exclusionAdded.testGetValue(),
+    2,
+    "should have counted 2 exclusions added"
+  );
 
-    // Remove an exclusion — counter should not increment
-    lazy.IPPExceptionsManager.setExclusion(principal1, false);
-    Assert.equal(
-      Glean.ipprotection.exclusionAdded.testGetValue(),
-      2,
-      "counter should not increment on removal"
-    );
+  // Remove an exclusion — counter should not increment
+  lazy.IPPExceptionsManager.setExclusion(principal1, false);
+  Assert.equal(
+    Glean.ipprotection.exclusionAdded.testGetValue(),
+    2,
+    "counter should not increment on removal"
+  );
 
-    Services.fog.testResetFOG();
-    lazy.IPPExceptionsManager.uninit();
-    Services.perms.removeByType(PERM_NAME);
-  }
-);
+  Services.fog.testResetFOG();
+  lazy.IPPExceptionsManager.uninit();
+  Services.perms.removeByType(PERM_NAME);
+});
 
 /**
  * Tests that the get_started event is recorded when the "Get Started" button is clicked
  */
 add_task(async function test_get_started() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise is always authenticated; there is no unauthenticated opt-in flow.
-    return;
-  }
   setupService({
     isReady: false,
   });
@@ -522,10 +498,6 @@ add_task(async function test_get_started() {
  * Tests that the enrollment event is recorded after completing the enroll flow
  */
 add_task(async function test_enrollment() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise is always authenticated; there is no enrollment flow.
-    return;
-  }
   setupService({
     isReady: false,
   });

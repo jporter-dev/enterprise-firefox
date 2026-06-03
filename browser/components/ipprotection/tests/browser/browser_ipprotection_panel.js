@@ -145,10 +145,6 @@ add_task(async function test_close_panel() {
  * the locations subview.
  */
 add_task(async function test_location_button_opens_subview() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise uses a different panel template without the status card or location UI.
-    return;
-  }
   let content = await openPanel({
     isProtectionEnabled: true,
   });
@@ -190,10 +186,6 @@ add_task(async function test_location_button_opens_subview() {
  * when the dismissed pref is not set.
  */
 add_task(async function test_location_button_badge_shown_by_default() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise uses a different panel template without the status card or location UI.
-    return;
-  }
   Services.prefs.clearUserPref(LOCATION_BADGE_DISMISSED_PREF);
 
   let content = await openPanel({
@@ -218,10 +210,6 @@ add_task(async function test_location_button_badge_shown_by_default() {
  * the dismissed pref, and that the badge is hidden on subsequent opens.
  */
 add_task(async function test_location_button_badge_dismissed_on_panel_close() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise uses a different panel template without the status card or location UI.
-    return;
-  }
   Services.prefs.clearUserPref(LOCATION_BADGE_DISMISSED_PREF);
 
   let content = await openPanel({
@@ -257,10 +245,6 @@ add_task(async function test_location_button_badge_dismissed_on_panel_close() {
  */
 add_task(
   async function test_location_button_badge_dismissed_on_location_button_click() {
-    if (AppConstants.MOZ_ENTERPRISE) {
-      // Enterprise uses a different panel template without the status card or location UI.
-      return;
-    }
     Services.prefs.clearUserPref(LOCATION_BADGE_DISMISSED_PREF);
 
     let content = await openPanel({
@@ -368,10 +352,6 @@ add_task(async function test_user_enable_count() {
  * Tests showing the locations subview.
  */
 add_task(async function test_show_locations() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise uses a different panel template without the location selector UI.
-    return;
-  }
   let button = document.getElementById(lazy.IPProtectionWidget.WIDGET_ID);
   let panelView = PanelMultiView.getViewNode(
     document,

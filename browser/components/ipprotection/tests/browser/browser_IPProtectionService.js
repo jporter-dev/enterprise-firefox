@@ -58,10 +58,6 @@ async function optInUser() {
  * creating and destroying the widget.
  */
 add_task(async function test_IPProtectionService_updateEligibility() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise is always enabled via policy; it doesn't use Nimbus experiments.
-    return;
-  }
   let cleanupAlpha = await setupExperiment({ enabled: true, variant: "alpha" });
   Assert.equal(
     IPProtectionService.state,
@@ -122,10 +118,6 @@ add_task(async function test_IPProtectionService_updateEnrollment() {
  * Tests a user in the experiment can enroll with Guardian by clicking get started.
  */
 add_task(async function test_IPProtectionService_enroll() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise is always signed in; there is no unauthenticated panel UI.
-    return;
-  }
   setupService({
     isReady: false,
     canEnroll: true,
@@ -163,10 +155,6 @@ add_task(async function test_IPProtectionService_enroll() {
  */
 add_task(
   async function test_IPProtectionService_updateEntitlement_in_experiment() {
-    if (AppConstants.MOZ_ENTERPRISE) {
-      // Enterprise is always enabled via policy; it doesn't use Nimbus experiments.
-      return;
-    }
     Services.prefs.clearUserPref("browser.ipProtection.enabled");
     setupService({
       isReady: true,
@@ -246,10 +234,6 @@ add_task(async function test_ipprotection_ready() {
  * Tests showing an error state UI and dismissing it on panel close.
  */
 add_task(async function test_IPProtectionService_pass_errors() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise renders a different panel template without the status card UI.
-    return;
-  }
   setupService({
     isReady: true,
     proxyPass: {
@@ -319,10 +303,6 @@ add_task(async function test_IPProtectionService_pass_errors() {
  * Tests retry after an error.
  */
 add_task(async function test_IPProtectionService_retry_errors() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise renders a different panel template without the status card UI.
-    return;
-  }
   setupService({
     isReady: true,
     canEnroll: true,
@@ -361,11 +341,6 @@ add_task(async function test_IPProtectionService_retry_errors() {
  * Tests the proxy is stopped if user signs out with it active.
  */
 add_task(async function test_IPProtectionService_stop_on_signout() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise always considers users authenticated (no FxA sign-out), so
-    // this scenario cannot occur. The panel also lacks the status card UI.
-    return;
-  }
   setupService({
     isReady: true,
     canEnroll: true,
@@ -424,10 +399,6 @@ add_task(async function test_IPProtectionService_stop_on_signout() {
  * Tests that exposure events will be sent for branches and control
  */
 add_task(async function test_IPProtectionService_exposure() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise is always enabled via policy; it doesn't use Nimbus experiments.
-    return;
-  }
   Services.telemetry.clearEvents();
   NimbusFeatures.ipProtection._didSendExposureEvent = false;
 

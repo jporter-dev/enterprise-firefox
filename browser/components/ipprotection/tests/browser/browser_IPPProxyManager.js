@@ -4,6 +4,10 @@
 
 "use strict";
 
+const { IPProtectionServerlist } = ChromeUtils.importESModule(
+  "moz-src:///toolkit/components/ipprotection/IPProtectionServerlist.sys.mjs"
+);
+
 add_task(async function test_IPPProxyManager_handleProxyErrorEvent() {
   setupService({
     isReady: true,
@@ -162,10 +166,6 @@ add_task(async function test_IPPProxyManager_bug_1999946() {
  * Tests that opening the panel when the IPPProxyManager state is PAUSED shows the paused view.
  */
 add_task(async function test_IPPProxyManager_paused_shown() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise renders a different panel template without paused/upgrade UI.
-    return;
-  }
   IPPProxyManager.reset();
 
   const usage = makeUsage("5368709120", "0", "2027-01-01T00:00:00.000Z");
@@ -205,10 +205,6 @@ add_task(async function test_IPPProxyManager_paused_shown() {
  * Tests that setting usage with remaining > 0 unpauses the IPPProxyManager and shows the main view.
  */
 add_task(async function test_IPPProxyManager_unpause_on_available() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise renders a different panel template without paused/upgrade UI.
-    return;
-  }
   IPPProxyManager.reset();
   setupService({
     isReady: true,
@@ -278,10 +274,6 @@ add_task(async function test_IPPProxyManager_unpause_on_available() {
  * when bandwidth quota is exceeded.
  */
 add_task(async function test_IPPProxyManager_update_usage_on_stop() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise renders a different panel template without the status card UI.
-    return;
-  }
   IPPProxyManager.reset();
   setupService({
     isReady: true,
@@ -366,10 +358,6 @@ add_task(async function test_IPPProxyManager_update_usage_on_stop() {
  * Tests that re-opening the panel when the IPPProxyManager state is ACTIVE does not reset the state (Bug 2021236).
  */
 add_task(async function test_IPPProxyManager_active_shown() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise renders a different panel template without the status card UI.
-    return;
-  }
   IPPProxyManager.reset();
 
   const usage = makeUsage();
@@ -420,10 +408,6 @@ add_task(async function test_IPPProxyManager_active_shown() {
  * Tests that the paused modal isn't shown when quota is exceeded during activation.
  */
 add_task(async function test_IPPProxyManager_paused_on_activation() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise renders a different panel template without the status card UI.
-    return;
-  }
   IPPProxyManager.reset();
 
   setupService({
@@ -469,10 +453,6 @@ add_task(async function test_IPPProxyManager_paused_on_activation() {
  * not ERROR state (Bug 2022865).
  */
 add_task(async function test_IPPProxyManager_rotateProxyPass_when_paused() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise renders a different panel template without the status card UI.
-    return;
-  }
   IPPProxyManager.reset();
 
   setupService({

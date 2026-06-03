@@ -436,10 +436,6 @@ add_task(async function test_confirmation_hint_once_per_unique_excluded_site() {
  * Tests that we don't show confirmation hints when we press the exclusion toggle.
  */
 add_task(async function test_confirmation_hint_exclusions_toggle() {
-  if (AppConstants.MOZ_ENTERPRISE) {
-    // Enterprise renders a different panel template without the site exclusion toggle UI.
-    return;
-  }
   await SpecialPowers.pushPrefEnv({
     set: [["browser.ipProtection.siteExceptionsHintsEnabled", true]],
   });

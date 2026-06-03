@@ -1,4 +1,5 @@
 [DEFAULT]
+environment = ["MOZ_BYPASS_FELT=1"]
 support-files = [
   "head.js",
 ]
@@ -14,31 +15,38 @@ prefs = [
 ["browser_IPPChannelFilter.js"]
 
 ["browser_IPPProxyManager.js"]
+# Enterprise uses a different panel template without status card, paused, or upgrade UI.
+skip-if = ["enterprise"]
 
 ["browser_IPPUsageHelper.js"]
-# Enterprise has no status card or bandwidth meter; IPPUsageHelper has no UI to drive.
+# Enterprise does not show the IP Protection toolbar button or panel containing the usage.
 skip-if = ["enterprise"]
 
 ["browser_IPProtectionService.js"]
+# Enterprise uses IPPEnterpriseAuthProvider which has no enrollment, entitlement, or FxA sign-in
+# flow, and does not show the standard panel or toolbar button.
+skip-if = ["enterprise"]
 
 ["browser_guardian_client.js"]
+# Enterprise uses IPPEnterpriseAuthProvider which does not use the Guardian client.
+skip-if = ["enterprise"]
 
 ["browser_ipprotection_alert_manager.js"]
 
 ["browser_ipprotection_bandwidth_precision.js"]
-# Enterprise has no status card or bandwidth meter.
+# Enterprise does not show the IP Protection toolbar button or panel containing the bandwidth UI.
 skip-if = ["enterprise"]
 
 ["browser_ipprotection_confirmation_hints_site_exclusion.js"]
-# Enterprise has no site exclusion feature; confirmation hints for exclusion toggles never fire.
+# Enterprise has no site exclusion feature; confirmation hints on tab navigation never fire.
 skip-if = ["enterprise"]
 
 ["browser_ipprotection_content.js"]
-# Enterprise renders a minimal panel template without status card, upgrade, or paused UI.
+# Enterprise does not show the IP Protection toolbar button or panel.
 skip-if = ["enterprise"]
 
 ["browser_ipprotection_content_site_exclusion.js"]
-# Enterprise uses a different panel template without the site exclusion toggle UI.
+# Enterprise does not show the IP Protection toolbar button or panel containing the site exclusion UI.
 skip-if = ["enterprise"]
 
 ["browser_ipprotection_content_unauthenticated.js"]
@@ -46,7 +54,7 @@ skip-if = ["enterprise"]
 skip-if = ["enterprise"]
 
 ["browser_ipprotection_header.js"]
-# Enterprise replaces the help-button header with an Access Connector status label.
+# Enterprise does not show the IP Protection toolbar button or panel containing the header.
 skip-if = ["enterprise"]
 
 ["browser_ipprotection_infobar.js"]
@@ -56,36 +64,49 @@ skip-if = ["enterprise"]
 skip-if = ["enterprise"]
 
 ["browser_ipprotection_location_selector_telemetry.js"]
-# Enterprise uses a different panel template without the status card or location selector UI.
+# Enterprise does not show the IP Protection toolbar button or panel containing the location selector.
 skip-if = ["enterprise"]
 
 ["browser_ipprotection_locations_keyboard_navigation.js"]
-# Enterprise uses a different panel template without the status card or location selector UI.
+# Enterprise does not show the IP Protection toolbar button or panel.
 skip-if = ["enterprise"]
 
 ["browser_ipprotection_locations_list.js"]
 
 ["browser_ipprotection_message_bar.js"]
+# Enterprise does not show the IP Protection toolbar button or panel containing the message bar.
+skip-if = ["enterprise"]
 
 ["browser_ipprotection_network_error.js"]
+# Enterprise does not show the IP Protection toolbar button or panel containing the network errors.
+skip-if = ["enterprise"]
 
 ["browser_ipprotection_optout.js"]
 
 ["browser_ipprotection_panel.js"]
+# Enterprise does not show the IP Protection toolbar button or panel.
+skip-if = ["enterprise"]
 
 ["browser_ipprotection_proxy_errors.js"]
 
 ["browser_ipprotection_status_box.js"]
+# Enterprise does not show the IP Protection toolbar button or panel containing the status box.
+skip-if = ["enterprise"]
 
 ["browser_ipprotection_status_card.js"]
-# Enterprise has no status card UI.
+# Enterprise does not show the IP Protection toolbar button or panel containing the status card.
 skip-if = ["enterprise"]
 
 ["browser_ipprotection_telemetry.js"]
+# Enterprise uses IPPEnterpriseAuthProvider with no user-facing toggle, enrollment, or exclusion
+# flow; nearly all telemetry events tested here cannot be triggered in Enterprise.
+skip-if = ["enterprise"]
 
 ["browser_ipprotection_toolbar.js"]
+# Enterprise does not show the IP Protection toolbar button or panel.
 skip-if = [
   "devedition",
+  "enterprise",
 ]
 
 ["browser_ipprotection_utils.js"]
