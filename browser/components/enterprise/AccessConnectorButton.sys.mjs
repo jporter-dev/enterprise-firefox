@@ -100,6 +100,8 @@ export class AccessConnectorButton {
 
   /**
    * Routes TabSelect and IPPProxyManager:StateChanged events to a status update.
+   *
+   * @param {Event} _event
    */
   #handleEvent(_event) {
     this.#update();
