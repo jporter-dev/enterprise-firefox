@@ -7,14 +7,8 @@ const lazy = {};
 ChromeUtils.defineESModuleGetters(lazy, {
   IPPProxyManager:
     "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
-  IPPProxyStates:
+  IPPPrincipalRules:
     "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
-  createEnterpriseLogger:
-    "resource:///modules/enterprise/EnterpriseCommon.sys.mjs",
-});
-
-ChromeUtils.defineLazyGetter(lazy, "log", () => {
-  return lazy.createEnterpriseLogger("AccessConnectorButton");
 });
 
 const BUTTON_ID = "access-connector-button";
@@ -121,18 +115,11 @@ export class AccessConnectorButton {
    *  Whether the current page is protected by the access connector.
    */
   #getStatus() {
-    const isActive = lazy.IPPProxyManager.state === lazy.IPPProxyStates.ACTIVE;
     const principal = this.gBrowser?.selectedBrowser?.contentPrincipal;
-    try {
-      return isActive && principal
-        ? (lazy.IPPProxyManager.channelFilter()?.shouldInclude({
-            URI: principal.URI,
-          }) ?? false)
-        : false;
-    } catch (e) {
-      lazy.log.warn("Failed to check access connector state for URI: ", e);
-      return false;
-    }
+    return (
+      lazy.IPPProxyManager.getPrincipalRule(principal) ===
+      lazy.IPPPrincipalRules.INCLUDED
+    );
   }
 
   /**
