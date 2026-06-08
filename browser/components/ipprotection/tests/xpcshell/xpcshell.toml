@@ -10,7 +10,13 @@ prefs = [
 ]
 
 ["test_IPPOnboardingMessageHelper.js"]
+skip-if = [
+  "enterprise", # Enterprise has no user-facing onboarding; VPN start, autostart, and site exception flags are never set
+]
 
 ["test_IPProtectionPanel.js"]
+skip-if = [
+  "enterprise", # State transition tasks (signedIn/signedOut) hang waiting for events that don't fire; Enterprise panel uses a different template
+]
 
 ["test_IPProtectionToolbarButton.js"]
