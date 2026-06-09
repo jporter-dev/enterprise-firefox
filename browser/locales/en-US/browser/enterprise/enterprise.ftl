@@ -77,11 +77,11 @@ blocked-by-policy-title-enterprise = Access to this site is restricted
 neterror-blocked-by-policy-page-title-enterprise = Access to this site is restricted
 neterror-blocked-by-policy-contact-admin = If you believe this is an error or need access for work purposes, please contact your IT administrator.
 
-enterprise-access-connector-heading = Access Connector
+enterprise-access-connector-heading = { -brand-feature-access-connector }
 enterprise-access-connector-info-active = This site is being accessed through a secure company connection.
 enterprise-access-connector-button =
-  .label = Access Connector
-  .tooltiptext = Access Connector
+  .label = { -brand-feature-access-connector }
+  .tooltiptext = { -brand-feature-access-connector }
 enterprise-access-connector-status-label-active = active
 enterprise-access-connector-status-label-inactive = inactive
 
