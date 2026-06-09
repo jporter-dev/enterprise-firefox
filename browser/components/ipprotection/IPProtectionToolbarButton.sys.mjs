@@ -405,7 +405,7 @@ export class IPProtectionToolbarButton {
     let isExcluded = status.isExcluded && this.isExceptionsFeatureEnabled;
     let isIncluded = status.isIncluded;
     let isPaused = status.isPaused;
-    let l10nId = "enterprise-access-connector-button";
+    let l10nId = "enterprise-access-connector-button2";
 
     toolbaritem.classList.remove(
       "ipprotection-on",
