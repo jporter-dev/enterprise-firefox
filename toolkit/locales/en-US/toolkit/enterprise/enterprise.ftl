@@ -77,9 +77,9 @@ lockdown-mode-popup-header = Viewing with restrictions applied
 lockdown-mode-popup-message = You’re viewing this page with extra security protections applied by your organization. Some features may be limited to help reduce security risks.
 
 access-connector-button =
-    .aria-label = Access connector enabled
-    .tooltiptext = Access connector enabled
-access-connector-panel-header = Access connector enabled
+    .aria-label = { -enterprise-feature-access-connector } enabled
+    .tooltiptext = { -enterprise-feature-access-connector } enabled
+access-connector-panel-header = { -enterprise-feature-access-connector } enabled
 access-connector-panel-message = Connections to this site use additional authentication methods and are routed through a secure enterprise proxy.
 
 blocked-by-policy-title-enterprise = Access to this site is restricted
