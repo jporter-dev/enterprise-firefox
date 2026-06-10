@@ -2,6 +2,9 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+# Access Connector is an Enterprise feature name and must not be translated.
+-enterprise-feature-access-connector = Access Connector
+
 enterprise-toolbar-button =
     .label = { -brand-short-name }
     .tooltiptext = { -brand-short-name }
@@ -77,11 +80,11 @@ blocked-by-policy-title-enterprise = Access to this site is restricted
 neterror-blocked-by-policy-page-title-enterprise = Access to this site is restricted
 neterror-blocked-by-policy-contact-admin = If you believe this is an error or need access for work purposes, please contact your IT administrator.
 
-enterprise-access-connector-heading2 = { -brand-feature-access-connector }
+enterprise-access-connector-heading2 = { -enterprise-feature-access-connector }
 enterprise-access-connector-info-active = This site is being accessed through a secure company connection.
 enterprise-access-connector-button2 =
-  .label = { -brand-feature-access-connector }
-  .tooltiptext = { -brand-feature-access-connector }
+  .label = { -enterprise-feature-access-connector }
+  .tooltiptext = { -enterprise-feature-access-connector }
 enterprise-access-connector-status-label-active = active
 enterprise-access-connector-status-label-inactive = inactive
 

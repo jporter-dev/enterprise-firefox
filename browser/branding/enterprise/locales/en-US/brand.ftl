@@ -25,9 +25,3 @@
 -brand-product-name = Firefox
 -vendor-short-name = Mozilla
 trademarkInfo = Firefox and the Firefox logos are trademarks of the Mozilla Foundation.
-
-## Enterprise Brand Features
-##
-## These feature names are enterprise product names and must not be translated.
-
--brand-feature-access-connector = Access Connector
