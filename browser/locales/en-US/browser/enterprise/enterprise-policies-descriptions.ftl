@@ -5,8 +5,9 @@
 policy-AccessConnector2 = Configure the { -enterprise-feature-access-connector } for proxying web traffic.
 policy-AIChatbot = Configure available AI chatbot providers, default provider, and prompt features.
 policy-BlocklistDomainBrowsedTelemetry = Enable and configure security logging/telemetry when { -brand-short-name } blocks a visit to a blocklisted domain.
+policy-BuiltinDataLossPrevention = Enable or disable Firefox's built-in data loss prevention. If ContentAnalysis is also enabled, it takes precedence.
+policy-CrashReportsSubmit = Configure crash report submission settings.
 policy-DownloadTelemetry = Enable and configure security logging/telemetry when a download is triggered.
 policy-EnterpriseStorageEncryption = Enable enterprise-managed primary password for encrypted storage.
 policy-PrintPageTelemetry = Enable and configure security logging/telemetry when a page is printed.
 policy-Sync = Enable or disable sync and define which data to include.
-policy-CrashReportsSubmit = Configure crash report submission settings.

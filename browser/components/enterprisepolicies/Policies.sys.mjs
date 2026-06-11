@@ -26,6 +26,8 @@ ChromeUtils.defineESModuleGetters(lazy, {
   AddonManagerPrivate: "resource://gre/modules/AddonManager.sys.mjs",
   AddonRepository: "resource://gre/modules/addons/AddonRepository.sys.mjs",
   BookmarksPolicies: "resource:///modules/policies/BookmarksPolicies.sys.mjs",
+  BuiltinDataLossPrevention:
+    "resource:///modules/policies/BuiltinDataLossPrevention.sys.mjs",
   CustomizableUI:
     "moz-src:///browser/components/customizableui/CustomizableUI.sys.mjs",
   ExtensionPermissions: "resource://gre/modules/ExtensionPermissions.sys.mjs",
@@ -724,6 +726,19 @@ export var Policies = {
     },
   },
 
+  BuiltinDataLossPrevention: {
+    onBeforeAddons(manager, param) {
+      if (param.Enabled) {
+        lazy.BuiltinDataLossPrevention.enable(manager, param);
+      } else {
+        lazy.BuiltinDataLossPrevention.disable(manager);
+      }
+    },
+    onRemove(manager, _oldParams) {
+      lazy.BuiltinDataLossPrevention.disable(manager);
+    },
+  },
+
   CaptivePortal: {
     onBeforeAddons(manager, param) {
       setAndLockPref("network.captive-portal-service.enabled", param);
@@ -1004,6 +1019,10 @@ export var Policies = {
         // to be consistent.
         Services.prefs.lockPref("browser.contentanalysis.enabled");
       }
+      lazy.BuiltinDataLossPrevention.updateDLPMode(manager);
+    },
+    onRemove(manager, _oldParams) {
+      lazy.BuiltinDataLossPrevention.updateDLPMode(manager);
     },
   },
 

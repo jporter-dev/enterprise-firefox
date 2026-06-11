@@ -254,6 +254,7 @@ function generateErrors() {
     "WindowsGPOParser",
     "Enterprise Policies Child",
     "BookmarksPolicies",
+    "BuiltinDataLossPrevention",
     "ProxyPolicies",
     "WebsiteFilter Policy",
     "macOSPoliciesParser",

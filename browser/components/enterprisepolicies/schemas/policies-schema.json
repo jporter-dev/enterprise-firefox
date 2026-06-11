@@ -558,6 +558,53 @@
         }
       }
     },
+    "BuiltinDataLossPrevention": {
+      "type": "object",
+      "properties": {
+        "Enabled": {
+          "type": "boolean"
+        },
+        "Rules": {
+          "type": "array",
+          "strict": false,
+          "items": {
+            "type": "object",
+            "properties": {
+              "Name": {
+                "type": "string"
+              },
+              "Enabled": {
+                "type": "boolean"
+              },
+              "Actions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "Domains": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "Posture": {
+                "type": "string"
+              },
+              "Type": {
+                "type": "string"
+              },
+              "Message": {
+                "type": "string"
+              }
+            },
+            "required": ["Name", "Actions", "Domains"]
+          }
+        }
+      },
+      "x-category": "Security",
+      "description": "Enable Firefox's built-in Data Loss Prevention. If ContentAnalysis is also enabled, it takes precedence and the built-in DLP will not activate."
+    },
     "CaptivePortal": {
       "type": "boolean",
       "x-category": "Network security",
