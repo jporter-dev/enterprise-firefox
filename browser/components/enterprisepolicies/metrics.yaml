@@ -43,4 +43,30 @@ content_policy:
         description: >
           The referrer address from which the url was requested.
         type: string
+
+access_connector:
+  proxy_error:
+    type: event
+    description: >
+      Recorded when the Access Connector proxy error state is shown to the
+      user (urlbar button enters error state due to a proxy connection failure).
+      Only collected when MOZ_ENTERPRISE is defined and enabled.
+    bugs:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=TBD
+    data_reviews:
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=TBD
+    data_sensitivity:
+      - interaction
+    notification_emails:
+      - security-telemetry@mozilla.org
+      - enterprise-telemetry@mozilla.org
+    expires: never
+    send_in_pings:
+      - enterprise
+    extra_keys:
+      domain:
+        description: >
+          The hostname of the site that failed to load through the Access
+          Connector proxy.
+        type: string
 #endif

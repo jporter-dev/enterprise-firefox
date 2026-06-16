@@ -27,6 +27,7 @@ export class AccessConnectorButton {
   #window = null;
   #progressListener = null;
   #onClick = null;
+  #wasError = false;
 
   /**
    * @param {Window} window - The chrome window that owns the button.
@@ -138,20 +139,24 @@ export class AccessConnectorButton {
         PROXY_ERROR_CODES.has(errorCode) &&
         "AccessConnector" in Services.policies.getActivePolicies()
       ) {
-        return { isProtected: true, isError: true };
+        let domain = "";
+        try {
+          domain = new URL(params.get("u") ?? "").hostname;
+        } catch {}
+        return { isProtected: true, isError: true, domain };
       }
     }
 
-    return { isProtected: false, isError: false };
+    return { isProtected: false, isError: false, domain: "" };
   }
 
   /**
    * Shows the button when the page is protected by the access connector, and
    * applies error styling when the proxy is unavailable.
    *
-   * @param {{ isProtected: boolean, isError: boolean }} status
+   * @param {{ isProtected: boolean, isError: boolean, domain: string }} status
    */
-  applyStatus({ isProtected, isError }) {
+  applyStatus({ isProtected, isError, domain }) {
     const button = this.#button;
     if (!button) {
       return;
@@ -179,6 +184,14 @@ export class AccessConnectorButton {
         panel?.removeAttribute("error");
       }
     }
+
+    // Record once per error transition. #wasError prevents re-firing on
+    // every subsequent #update() call (tab switch, state change, etc.)
+    if (isError && !this.#wasError) {
+      Glean.accessConnector.proxyError.record({ domain });
+      GleanPings.enterprise.submit();
+    }
+    this.#wasError = isError;
   }
 
   /**
