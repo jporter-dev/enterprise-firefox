@@ -22,12 +22,13 @@
            has-custom-header="true">
   <box class="panel-header">
     <html:h1>
-      <html:span data-l10n-id="access-connector-panel-header" />
+      <html:span class="access-connector-active-state" data-l10n-id="access-connector-panel-header" />
+      <html:span class="access-connector-error-state" data-l10n-id="access-connector-panel-header-error" />
     </html:h1>
   </box>
   <toolbarseparator />
   <vbox class="panel-subview-body">
-    <html:div id="access-connector-panel-message"
-              data-l10n-id="access-connector-panel-message" />
+    <html:div class="access-connector-active-state" data-l10n-id="access-connector-panel-message" />
+    <html:div class="access-connector-error-state" data-l10n-id="access-connector-panel-message-error" />
   </vbox>
 </panelview>

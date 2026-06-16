@@ -10,6 +10,10 @@
   list-style-image: url("chrome://browser/content/enterprise/access-connector.svg");
 }
 
+#access-connector-button[error] .urlbar-icon {
+  list-style-image: url("chrome://browser/content/enterprise/access-connector-unavailable.svg");
+}
+
 /* use theme colors for HCM */
 @media not (forced-colors) {
   #lockdown-mode-button .urlbar-icon,
@@ -17,6 +21,18 @@
     -moz-context-properties: fill;
     fill: var(--icon-color-information);
   }
+}
+
+#panelUI-access-connector .access-connector-error-state {
+  display: none;
+}
+
+#panelUI-access-connector[error] .access-connector-active-state {
+  display: none;
+}
+
+#panelUI-access-connector[error] .access-connector-error-state {
+  display: revert;
 }
 
 .enterprise-urlbar-panel-subview {

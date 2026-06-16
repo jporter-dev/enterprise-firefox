@@ -14,6 +14,11 @@ ChromeUtils.defineESModuleGetters(lazy, {
 const BUTTON_ID = "access-connector-button";
 const PANEL_ID = "panelUI-access-connector";
 
+const PROXY_ERROR_CODES = new Set([
+  "proxyConnectFailure",
+  "proxyResolveFailure",
+]);
+
 /**
  * AccessConnectorButton manages the enterprise access connector urlbar button
  * for a single browser window.
@@ -111,26 +116,68 @@ export class AccessConnectorButton {
   /**
    * Checks the current proxy status for the current page.
    *
-   * @returns {boolean}
-   *  Whether the current page is protected by the access connector.
+   * @returns {{ isProtected: boolean, isError: boolean, domain: string }}
    */
   #getStatus() {
-    const principal = this.gBrowser?.selectedBrowser?.contentPrincipal;
-    return (
-      lazy.IPPProxyManager.getPrincipalRule(principal) ===
-      lazy.IPPPrincipalRules.INCLUDED
-    );
+    const browser = this.gBrowser?.selectedBrowser;
+    const principal = browser?.contentPrincipal;
+
+    const rule = lazy.IPPProxyManager.getPrincipalRule(principal);
+    if (rule === lazy.IPPPrincipalRules.INCLUDED) {
+      return { isProtected: true, isError: false, domain: "" };
+    }
+
+    // When the proxy is down, Firefox loads about:neterror with the error code
+    // and original URL in the query string. principal.URI reflects the full page
+    // URL including query params, so we can get the URI from there.
+    const principalURI = principal?.URI;
+    if (principalURI?.spec.startsWith("about:neterror")) {
+      const params = new URLSearchParams(principalURI.query);
+      const errorCode = params.get("e");
+      if (
+        PROXY_ERROR_CODES.has(errorCode) &&
+        "AccessConnector" in Services.policies.getActivePolicies()
+      ) {
+        return { isProtected: true, isError: true };
+      }
+    }
+
+    return { isProtected: false, isError: false };
   }
 
   /**
-   * Shows the button only when the page is protected by the access connector.
+   * Shows the button when the page is protected by the access connector, and
+   * applies error styling when the proxy is unavailable.
    *
-   * @param {boolean} isProtected - Whether the current page is protected.
+   * @param {{ isProtected: boolean, isError: boolean }} status
    */
-  applyStatus(isProtected) {
+  applyStatus({ isProtected, isError }) {
     const button = this.#button;
-    if (button) {
-      button.hidden = !isProtected;
+    if (!button) {
+      return;
+    }
+
+    button.hidden = !isProtected;
+
+    if (isError) {
+      button.setAttribute("error", "true");
+    } else {
+      button.removeAttribute("error");
+    }
+
+    const doc = this.#window?.get()?.document;
+    if (doc) {
+      doc.l10n.setAttributes(
+        button,
+        isError ? "access-connector-button-error" : "access-connector-button"
+      );
+
+      const panel = doc.getElementById(PANEL_ID);
+      if (isError) {
+        panel?.setAttribute("error", "true");
+      } else {
+        panel?.removeAttribute("error");
+      }
     }
   }
 
