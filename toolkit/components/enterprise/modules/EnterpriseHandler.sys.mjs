@@ -12,12 +12,8 @@ ChromeUtils.defineLazyGetter(lazy, "localization", () => {
 });
 
 ChromeUtils.defineESModuleGetters(lazy, {
-  AccessConnectorButton:
-    "resource:///modules/enterprise/AccessConnectorButton.sys.mjs",
   BrowserUtils: "resource://gre/modules/BrowserUtils.sys.mjs",
   ConsoleClient: "resource://gre/modules/enterprise/ConsoleClient.sys.mjs",
-  IPPProxyManager:
-    "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
   isTesting: "resource://gre/modules/enterprise/EnterpriseCommon.sys.mjs",
   createEnterpriseLogger:
     "resource://gre/modules/enterprise/EnterpriseCommon.sys.mjs",
@@ -171,7 +167,6 @@ export const EnterpriseHandler = {
    */
   _initUrlbarButtons(window) {
     this._initLockdownModeButton(window);
-    this._initAccessConnectorButton(window);
   },
 
   /**
@@ -202,18 +197,6 @@ export const EnterpriseHandler = {
         button.hidden = !isLockedDown;
       },
     });
-  },
-
-  /**
-   * Initializes the access connector button in the urlbar.
-   *
-   * The button will be visible based on whether the current page is protected by an access connector, as determined by the IPPProxyManager.
-   *
-   * @param {Window} window chrome window
-   */
-  _initAccessConnectorButton(window) {
-    const button = new lazy.AccessConnectorButton(window);
-    window.addEventListener("unload", () => button.uninit(), { once: true });
   },
 
   /**

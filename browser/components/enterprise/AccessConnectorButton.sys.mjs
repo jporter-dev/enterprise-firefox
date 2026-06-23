@@ -153,3 +153,16 @@ export class AccessConnectorButton {
     );
   }
 }
+
+/**
+ * Per-window lifecycle entry point for the access connector button.
+ */
+export const AccessConnectorButtonHandler = {
+  /**
+   * @param {Window} window chrome window
+   */
+  init(window) {
+    const button = new AccessConnectorButton(window);
+    window.addEventListener("unload", () => button.uninit(), { once: true });
+  },
+};
