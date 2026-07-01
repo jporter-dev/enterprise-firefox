@@ -1029,10 +1029,7 @@ export class IPProtectionPanel {
     const isExclusion =
       lazy.IPPExceptionsManager.getPrincipalRule(principal) ===
       lazy.IPPPrincipalRules.EXCLUDED;
-    const isInclusion =
-      lazy.IPPExceptionsManager.getPrincipalRule(principal) ===
-      lazy.IPPPrincipalRules.INCLUDED;
-    return { isExclusion, isInclusion };
+    return { isExclusion };
   }
 
   /**
