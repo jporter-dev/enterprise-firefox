@@ -19,6 +19,9 @@ const { ProxyPass, ProxyUsage, Entitlement } = ChromeUtils.importESModule(
 const { RemoteSettings } = ChromeUtils.importESModule(
   "resource://services-settings/remote-settings.sys.mjs"
 );
+const { AppConstants } = ChromeUtils.importESModule(
+  "resource://gre/modules/AppConstants.sys.mjs"
+);
 const { IPProtectionActivator } = ChromeUtils.importESModule(
   "moz-src:///toolkit/components/ipprotection/IPProtectionActivator.sys.mjs"
 );
@@ -95,6 +98,15 @@ async function putServerInRemoteSettings(
   await client.db.clear();
   await client.db.create(US);
   await client.db.importChanges({}, Date.now());
+
+  // In MOZ_ENTERPRISE builds the serverlist is backed by PrefServerList, which
+  // reads a pref and ignores the RemoteSettings collection populated above.
+  if (AppConstants.MOZ_ENTERPRISE) {
+    Services.prefs.setStringPref(
+      "browser.ipProtection.override.serverlist",
+      JSON.stringify([US])
+    );
+  }
 }
 /* exported putServerInRemoteSettings */
 
