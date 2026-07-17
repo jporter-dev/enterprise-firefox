@@ -154,6 +154,8 @@ run-if = [
 
 ["test_felt_starts_utf8.py"]
 
+["test_felt_status_panel.py"]
+
 ["test_felt_ui_scratch_reset.py"]
 disabled = "Bug 1996558: scaffolding for the Felt UI scratch-reset flow; not run in CI yet."
 

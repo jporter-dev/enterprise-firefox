@@ -265,6 +265,29 @@ moz-input-text::part(label) {
   content: "\2192";
 }
 
+#felt-statuspanel {
+  position: absolute;
+  bottom: 0;
+  inset-inline-start: 0;
+  max-width: 100%;
+  pointer-events: none;
+}
+
+#felt-statuspanel-label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: var(--space-xxsmall) var(--space-xsmall);
+  font-size: small;
+  color: var(--text-color);
+  background-color: var(--background-color-box);
+  border: 1px solid var(--border-color);
+  border-block-end: none;
+  border-inline-start: none;
+  border-start-end-radius: var(--border-radius-small);
+}
+
 .is-hidden {
   display: none !important;
 }
