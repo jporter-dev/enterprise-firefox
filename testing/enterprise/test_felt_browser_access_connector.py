@@ -125,11 +125,11 @@ class BrowserAccessConnector(FeltTests):
         rv.update(self.get_pref_value_and_locked_state("browser.ipProtection.enabled"))
         return rv
 
-    def get_access_connector_icon_is_displayed(self, hasError=False):
+    def get_access_connector_icon_is_displayed(self, is_error_case=False):
         with self._child_driver.using_context(self._child_driver.CONTEXT_CHROME):
             try:
                 button = self.find_elem_child("#access-connector-button")
-                if hasError:
+                if is_error_case:
                     return (
                         button.is_displayed()
                         and button.get_attribute("error") == "true"

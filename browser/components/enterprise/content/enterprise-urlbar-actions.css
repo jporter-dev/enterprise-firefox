@@ -14,7 +14,6 @@
   list-style-image: var(--access-connector-error-icon);
 }
 
-/* use theme colors for HCM */
 @media not (forced-colors) {
   #lockdown-mode-button .urlbar-icon,
   #access-connector-button .urlbar-icon {
