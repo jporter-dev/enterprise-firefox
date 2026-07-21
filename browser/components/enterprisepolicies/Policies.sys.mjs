@@ -3500,17 +3500,20 @@ export var Policies = {
   },
 
   Proxy: {
-    async onBeforeAddons(manager, param) {
+    onBeforeAddons(manager, param) {
       if (param.Locked) {
         manager.disallowFeature("changeProxySettings");
       }
-      let setDefaultPref = lazy.PoliciesUtils.setDefaultPref.bind(
+      const setDefaultPref = lazy.PoliciesUtils.setDefaultPref.bind(
         lazy.PoliciesUtils
       );
       lazy.ProxyPolicies.configureProxySettings(param, setDefaultPref);
 
       if (AppConstants.MOZ_ENTERPRISE) {
-        await lazy.ProxyPolicies.excludeConsoleFromProxy(param, setDefaultPref);
+        lazy.ProxyPolicies.excludeConsoleFromProxy(param, setDefaultPref).then(
+          null,
+          lazy.log.error
+        );
       }
     },
     onRemove(manager, oldParams) {
