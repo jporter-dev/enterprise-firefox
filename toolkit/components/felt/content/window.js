@@ -28,8 +28,7 @@ Services.obs.notifyObservers(window, "browser-delayed-startup-finished");
 
 let cancelActiveSso = null;
 
-// define as a var so it is exposed as window.FeltStatusPanel for the marionette test
-var FeltStatusPanel = {
+const FeltStatusPanel = {
   get _panel() {
     return document.getElementById("felt-statuspanel");
   },
@@ -296,6 +295,8 @@ function informAboutPotentialStartupFailure() {
 
 function setupMarionetteEnvironment() {
   window.fullScreen = false;
+
+  window.FeltStatusPanel = FeltStatusPanel;
 
   window.FullScreen = {
     exitDomFullScreen() {},
