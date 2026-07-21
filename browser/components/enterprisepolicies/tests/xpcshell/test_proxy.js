@@ -2,6 +2,10 @@
  * http://creativecommons.org/publicdomain/zero/1.0/ */
 "use strict";
 
+const { AppConstants } = ChromeUtils.importESModule(
+  "resource://gre/modules/AppConstants.sys.mjs"
+);
+
 add_task(async function test_proxy_modes_and_autoconfig() {
   // Directly test the proxy Mode and AutoconfigURL parameters through
   // the API instead of the policy engine, because the test harness
@@ -68,53 +72,60 @@ add_task(async function test_proxy_socks_and_passthrough() {
   checkUnlockedPref("network.proxy.no_proxies_on", "a, b, c");
 });
 
-add_task(async function test_proxy_exclude_console_from_proxy() {
-  const CONSOLE_ADDRESS_PREF = "enterprise.console.address";
-  let { ProxyPolicies } = ChromeUtils.importESModule(
-    "resource:///modules/policies/ProxyPolicies.sys.mjs"
-  );
-  registerCleanupFunction(() => {
-    Services.prefs.clearUserPref(CONSOLE_ADDRESS_PREF);
-  });
+add_task(
+  { skip_if: () => !AppConstants.MOZ_ENTERPRISE },
+  async function test_proxy_exclude_console_from_proxy() {
+    const CONSOLE_ADDRESS_PREF = "enterprise.console.address";
+    let { ProxyPolicies } = ChromeUtils.importESModule(
+      "resource:///modules/policies/ProxyPolicies.sys.mjs"
+    );
+    registerCleanupFunction(() => {
+      Services.prefs.clearUserPref(CONSOLE_ADDRESS_PREF);
+    });
 
-  let calls = [];
-  let setPref = (name, value, locked) => calls.push({ name, value, locked });
-  const NO_PROXIES = "network.proxy.no_proxies_on";
+    let calls = [];
+    let setPref = (name, value, locked) => calls.push({ name, value, locked });
+    const NO_PROXIES = "network.proxy.no_proxies_on";
 
-  // Set the address only after the call so the console-host injection has to
-  // survive the address arriving late in startup (bug 2051323).
-  let pending = ProxyPolicies.excludeConsoleFromProxy(
-    { Mode: "manual" },
-    setPref
-  );
-  Services.prefs.setStringPref(
-    CONSOLE_ADDRESS_PREF,
-    "https://console.example.com"
-  );
-  await pending;
-  Assert.deepEqual(calls, [
-    { name: NO_PROXIES, value: "console.example.com", locked: undefined },
-  ]);
+    // Set the address only after the call so the console-host injection has to
+    // survive the address arriving late in startup (bug 2051323).
+    let pending = ProxyPolicies.excludeConsoleFromProxy(
+      { Mode: "manual" },
+      setPref
+    );
+    Services.prefs.setStringPref(
+      CONSOLE_ADDRESS_PREF,
+      "https://console.example.com"
+    );
+    await pending;
+    Assert.deepEqual(calls, [
+      { name: NO_PROXIES, value: "console.example.com", locked: undefined },
+    ]);
 
-  calls = [];
-  await ProxyPolicies.excludeConsoleFromProxy(
-    { Mode: "manual", Passthrough: "a, b", Locked: true },
-    setPref
-  );
-  Assert.deepEqual(calls, [
-    { name: NO_PROXIES, value: "a, b, console.example.com", locked: true },
-  ]);
+    calls = [];
+    await ProxyPolicies.excludeConsoleFromProxy(
+      { Mode: "manual", Passthrough: "a, b", Locked: true },
+      setPref
+    );
+    Assert.deepEqual(calls, [
+      { name: NO_PROXIES, value: "a, b, console.example.com", locked: true },
+    ]);
 
-  // no_proxies_on is honored for PAC too, since CanUseProxy runs before the PAC.
-  calls = [];
-  await ProxyPolicies.excludeConsoleFromProxy(
-    { Mode: "autoConfig", Passthrough: "a, b" },
-    setPref
-  );
-  Assert.deepEqual(calls, [
-    { name: NO_PROXIES, value: "a, b, console.example.com", locked: undefined },
-  ]);
-});
+    // no_proxies_on is honored for PAC too, since CanUseProxy runs before the PAC.
+    calls = [];
+    await ProxyPolicies.excludeConsoleFromProxy(
+      { Mode: "autoConfig", Passthrough: "a, b" },
+      setPref
+    );
+    Assert.deepEqual(calls, [
+      {
+        name: NO_PROXIES,
+        value: "a, b, console.example.com",
+        locked: undefined,
+      },
+    ]);
+  }
+);
 
 add_task(async function test_proxy_addresses() {
   function checkProxyPref(proxytype, address, port) {
