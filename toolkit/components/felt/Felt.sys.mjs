@@ -317,7 +317,7 @@ export class Felt {
 
       case "FeltParent:FirefoxLogoutExit": {
         Services.felt.makeBackgroundProcess(false);
-        this.showWindow();
+        this.showWindow(message.data?.errorMessage ?? "");
         break;
       }
 

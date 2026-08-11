@@ -40,6 +40,8 @@ const PROCESS_START_REASON = {
   RESTART: "restart",
   CRASH: "crash",
 };
+const SIGNOUT_ON_CRASH_PREF = "enterprise.signout.crash.enabled";
+const SIGNOUT_ON_RESTART_PREF = "enterprise.signout.restart.enabled";
 
 export function queueURL(payload) {
   // If Firefox AND Felt are both ready, forward immediately
@@ -223,26 +225,43 @@ export class FeltProcessParent extends JSProcessActorParent {
                         `ParentProcess: Firefox exited for restart, restartDisabled=${restartDisabled}`
                       );
 
-                      if (!restartDisabled && !pendingUpdate) {
-                        lazy.log.debug(`ParentProcess: Starting new Firefox`);
-                        gFeltProcessParentInstance.startFirefox(
-                          PROCESS_START_REASON.RESTART
-                        );
-                      } else if (pendingUpdate) {
+                      const signOutOnRestart = Services.prefs.getBoolPref(
+                        SIGNOUT_ON_RESTART_PREF,
+                        false
+                      );
+                      if (pendingUpdate) {
                         lazy.log.debug(
                           `ParentProcess: Restart requested and pending update, restarting FELT UI`
                         );
-                        Services.cpmm.sendAsyncMessage(
-                          "FeltParent:FirefoxRestartUpdateExit",
-                          {}
-                        );
-                      } else {
+                        if (signOutOnRestart) {
+                          gFeltProcessParentInstance.signOutAndDispatch(
+                            "FeltParent:FirefoxRestartUpdateExit"
+                          );
+                        } else {
+                          Services.cpmm.sendAsyncMessage(
+                            "FeltParent:FirefoxRestartUpdateExit",
+                            {}
+                          );
+                        }
+                      } else if (restartDisabled) {
                         lazy.log.debug(
                           `ParentProcess: Restart disabled, sending normal exit to restore FELT UI`
                         );
                         Services.cpmm.sendAsyncMessage(
                           "FeltParent:FirefoxNormalExit",
                           {}
+                        );
+                      } else if (signOutOnRestart) {
+                        lazy.log.debug(
+                          `ParentProcess: Sign-out on restart, revoking session`
+                        );
+                        gFeltProcessParentInstance.signOutAndDispatch(
+                          "FeltParent:FirefoxLogoutExit"
+                        );
+                      } else {
+                        lazy.log.debug(`ParentProcess: Starting new Firefox`);
+                        gFeltProcessParentInstance.startFirefox(
+                          PROCESS_START_REASON.RESTART
                         );
                       }
                     })
@@ -662,6 +681,18 @@ export class FeltProcessParent extends JSProcessActorParent {
       return;
     }
 
+    if (Services.prefs.getBoolPref(SIGNOUT_ON_CRASH_PREF, false)) {
+      lazy.log.debug(
+        "enterprise.signout.crash.enabled set, revoking session and returning to login."
+      );
+      this.abnormalExitCounter = 0;
+      this.abnormalExitFirstTime = 0;
+      this.signOutAndDispatch("FeltParent:FirefoxLogoutExit", {
+        errorMessage: "felt-browser-info-signed-out-crash",
+      });
+      return;
+    }
+
     if (this.abnormalExitCounter === 0) {
       this.abnormalExitFirstTime =
         Services.telemetry.msSinceProcessStart() / 1000;
@@ -895,6 +926,25 @@ export class FeltProcessParent extends JSProcessActorParent {
             reason: "logout",
           });
         });
+      });
+  }
+
+  /**
+   * Revoke the session server-side, drop the local tokens, then hand off to the
+   * FELT UI with the given follow-up message.
+   *
+   * @param {string} message - Message to send once tokens are cleared
+   *  (e.g FeltParent::FirefoxLogoutExit to return to login).
+   * @param {object} [data] - Payload for the follow-up message.
+   */
+  signOutAndDispatch(message, data = {}) {
+    lazy.ConsoleClient.performServerSignout()
+      .catch(err => {
+        lazy.log.error(`Sign-out server request failed: ${err}`);
+      })
+      .finally(() => {
+        Services.felt.clearTokens();
+        Services.cpmm.sendAsyncMessage(message, data);
       });
   }
 

@@ -90,9 +90,19 @@ run-if = [
   "buildapp == 'browser'",
 ]
 
+["test_felt_browser_signout_on_crash.py"]
+run-if = [
+  "buildapp == 'browser'", # browser specific: child browser crash + signout
+]
+
 ["test_felt_browser_signout_on_exit.py"]
 run-if = [
   "buildapp == 'browser'", # broken on non browser app
+]
+
+["test_felt_browser_signout_on_restart.py"]
+run-if = [
+  "buildapp == 'browser'", # browser specific: child browser restart + signout
 ]
 
 ["test_felt_browser_signout_verify.py"]

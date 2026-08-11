@@ -63,6 +63,9 @@ felt-error-sdr-token-unlock-failed =
 felt-browser-info-console-forced-logout =
     .heading = You’ve been signed out
     .message = An administrator signed you out as part of routine account management. If you have any questions, please contact your administrator directly.
+felt-browser-info-signed-out-crash =
+    .heading = You’ve been signed out
+    .message = { -brand-short-name } closed unexpectedly, so your session was ended to keep your account secure. Please sign in again.
 
 ## Network error headings
 
