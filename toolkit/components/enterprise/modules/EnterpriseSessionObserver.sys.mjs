@@ -107,7 +107,6 @@ export const EnterpriseSessionObserver = {
       }
     }
 
-    lazy.ConsoleClient.clearTokenData();
     Services.felt.makeBackgroundProcess(true);
     Services.felt.performSignout();
 
@@ -140,10 +139,10 @@ export const EnterpriseSessionObserver = {
       return;
     }
     this._signingOut = true;
-    // Best-effort server-side revocation BEFORE clearing tokens.
-    // ConsoleClient._post() calls getAccessToken() internally, which needs
-    // the access token to still be present. Use a timeout to avoid stalling
-    // if the network is unreachable.
+    // Best-effort server-side revocation before handing off to FELT, which
+    // clears the local token store. _post() needs the access token to still
+    // be present, so this must run first. Timeout avoids stalling if the
+    // network is unreachable.
     try {
       await Promise.race([
         lazy.ConsoleClient._post(lazy.ConsoleClient._paths.SIGNOUT),
@@ -160,8 +159,6 @@ export const EnterpriseSessionObserver = {
         e
       );
     }
-
-    lazy.ConsoleClient.clearTokenData();
 
     Services.felt.makeBackgroundProcess(true);
     Services.felt.performSignout();
