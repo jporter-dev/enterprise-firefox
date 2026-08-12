@@ -80,7 +80,7 @@ class BrowserOsSession(FeltTests):
         self._child_driver.set_context("chrome")
         self._child_driver.execute_script(
             """
-            Services.prefs.setBoolPref("enterprise.signoutOnUserSwitch", true);
+            Services.prefs.setBoolPref("enterprise.signout.user_switch.enabled", true);
             """
         )
         self._child_driver.set_context("content")
@@ -105,7 +105,7 @@ class BrowserOsSession(FeltTests):
         self._child_driver.set_context("chrome")
         self._child_driver.execute_script(
             """
-            Services.prefs.setBoolPref("enterprise.signoutOnUserSwitch", false);
+            Services.prefs.setBoolPref("enterprise.signout.user_switch.enabled", false);
             """
         )
 
@@ -130,7 +130,7 @@ class BrowserOsSession(FeltTests):
         self._child_driver.set_context("chrome")
         self._child_driver.execute_script(
             """
-            Services.prefs.setBoolPref("enterprise.signoutOnScreenLock", true);
+            Services.prefs.setBoolPref("enterprise.signout.screen_lock.enabled", true);
             """
         )
         self._child_driver.set_context("content")
@@ -155,7 +155,7 @@ class BrowserOsSession(FeltTests):
         self._child_driver.set_context("chrome")
         self._child_driver.execute_script(
             """
-            Services.prefs.setBoolPref("enterprise.signoutOnScreenLock", false);
+            Services.prefs.setBoolPref("enterprise.signout.screen_lock.enabled", false);
             """
         )
 

@@ -19,8 +19,8 @@ ChromeUtils.defineLazyGetter(lazy, "log", () => {
 const TOPICS = ["os-session-end", "os-user-switch", "screen-locked"];
 
 export const EnterpriseSessionObserver = {
-  SIGNOUT_ON_USER_SWITCH_PREF: "enterprise.signoutOnUserSwitch",
-  SIGNOUT_ON_SCREEN_LOCK_PREF: "enterprise.signoutOnScreenLock",
+  SIGNOUT_ON_USER_SWITCH_PREF: "enterprise.signout.user_switch.enabled",
+  SIGNOUT_ON_SCREEN_LOCK_PREF: "enterprise.signout.screen_lock.enabled",
 
   _initialized: false,
   _signingOut: false,

@@ -159,7 +159,7 @@ static void OnSessionChange(WPARAM wParam, LPARAM lParam) {
         // WTS_CONSOLE_DISCONNECT fires on Fast User Switch and also on
         // some RDP/session-disconnect scenarios. This is intentionally
         // broad -- enterprise policy can disable it via the
-        // enterprise.signoutOnUserSwitch pref if needed.
+        // enterprise.signout.user_switch.enabled pref if needed.
         observerService->NotifyObservers(
             nullptr, NS_WIDGET_OS_USER_SWITCH_OBSERVER_TOPIC, nullptr);
       }
