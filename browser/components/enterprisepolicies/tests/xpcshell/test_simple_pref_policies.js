@@ -1573,6 +1573,22 @@ const POLICIES_TESTS = [
   {
     policies: {
       SignOut: {
+        NetworkLoss: {
+          Action: "lock",
+          GracePeriodMinutes: 15,
+        },
+      },
+    },
+    // Losing the console locks the session behind OS auth instead of signing
+    // out, once it has been unreachable for the whole grace period.
+    lockedPrefs: {
+      "enterprise.locking.network_loss": true,
+      "enterprise.network_loss.grace_period_minutes": 15,
+    },
+  },
+  {
+    policies: {
+      SignOut: {
         Crash: {
           Action: "signout",
         },
@@ -1580,6 +1596,18 @@ const POLICIES_TESTS = [
     },
     lockedPrefs: {
       "enterprise.locking.crash": false,
+    },
+  },
+  {
+    policies: {
+      SignOut: {
+        NetworkLoss: {
+          Action: "signout",
+        },
+      },
+    },
+    lockedPrefs: {
+      "enterprise.locking.network_loss": false,
     },
   },
 ];
