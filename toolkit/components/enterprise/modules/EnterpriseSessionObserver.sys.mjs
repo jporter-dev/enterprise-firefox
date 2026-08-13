@@ -132,37 +132,15 @@ export const EnterpriseSessionObserver = {
     this._performOsInitiatedSignout();
   },
 
-  _SERVER_SIGNOUT_TIMEOUT_MS: 5000,
-
-  async _performOsInitiatedSignout() {
+  _performOsInitiatedSignout() {
     if (this._signingOut) {
       return;
     }
     this._signingOut = true;
-    // Best-effort server-side revocation before handing off to FELT, which
-    // clears the local token store. _post() needs the access token to still
-    // be present, so this must run first. Timeout avoids stalling if the
-    // network is unreachable.
-    try {
-      await Promise.race([
-        lazy.ConsoleClient._post(lazy.ConsoleClient._paths.SIGNOUT),
-        new Promise((_resolve, reject) =>
-          lazy.setTimeout(
-            () => reject(new Error("Server signout timed out")),
-            this._SERVER_SIGNOUT_TIMEOUT_MS
-          )
-        ),
-      ]);
-    } catch (e) {
-      lazy.log.warn(
-        "Server-side signout failed, continuing with local cleanup",
-        e
-      );
-    }
-
+    // FELT owns the logout (server signout, token clearing, shutdown).
+    // Revoking the token here first would make FELT's signout fail on an
+    // already-revoked token and race our shutdown against FELT's.
     Services.felt.makeBackgroundProcess(true);
     Services.felt.performSignout();
-
-    Services.startup.quit(Ci.nsIAppStartup.eForceQuit);
   },
 };
