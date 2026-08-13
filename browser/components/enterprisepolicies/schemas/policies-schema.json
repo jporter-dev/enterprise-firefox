@@ -4191,11 +4191,15 @@
         }
       },
       "x-restart-required": false,
-      "description": "Control whether the managed session is signed out or locked when the browser closes.",
+      "description": "Control whether the managed session is signed out or locked when the browser closes or when the connection to the enterprise console is lost.",
       "examples": [
         {
           "BrowserClose": {
             "Action": "lock"
+          },
+          "ConnectionLoss": {
+            "Action": "lock",
+            "GracePeriod": 300
           }
         }
       ],
@@ -4206,6 +4210,19 @@
             "Action": {
               "type": "string",
               "enum": ["signout", "lock"]
+            }
+          },
+          "required": ["Action"]
+        },
+        "ConnectionLoss": {
+          "type": "object",
+          "properties": {
+            "Action": {
+              "type": "string",
+              "enum": ["none", "signout", "lock"]
+            },
+            "GracePeriod": {
+              "type": "number"
             }
           },
           "required": ["Action"]

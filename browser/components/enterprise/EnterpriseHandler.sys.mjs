@@ -25,6 +25,7 @@ ChromeUtils.defineLazyGetter(lazy, "log", () => {
 const PROMPT_ON_SIGNOUT_PREF = "enterprise.prompt_on_signout";
 const WARN_ON_CLOSE_PREF = "browser.tabs.warnOnClose";
 const LOCK_ON_CLOSE_PREF = "enterprise.locking.browser_close";
+const CONNECTION_LOSS_ACTION_PREF = "enterprise.connection_loss.action";
 
 export const EnterpriseHandler = {
   /**
@@ -377,10 +378,13 @@ export const EnterpriseHandler = {
    * client, which attaches it to the exit event when a shutdown is observed.
    * The value is cached there rather than read at close time so the intent
    * always travels with the exit itself (a vetoed quit sends nothing).
+   *
+   * The reason is cleared: an ordinary close is the user's own doing and needs
+   * no explanation, and this also undoes any reason a previous attempt set.
    */
   _syncCloseLockIntent() {
     try {
-      Services.felt.setCloseLockIntent(this.willLockOnClose);
+      Services.felt.setCloseLockIntent(this.willLockOnClose, "");
     } catch (e) {
       lazy.log.error(`Unable to sync close lock intent: ${e}`);
     }
@@ -411,5 +415,58 @@ export const EnterpriseHandler = {
       );
       this._lockOnClosePrefObserver = null;
     }
+  },
+
+  /**
+   * The policy-configured action for a sustained loss of the enterprise
+   * console: "none", "lock" or "signout".
+   *
+   * @returns {string}
+   */
+  get connectionLossAction() {
+    return Services.prefs.getStringPref(CONNECTION_LOSS_ACTION_PREF, "none");
+  },
+
+  /**
+   * Ends the FELT session because the enterprise console stayed unreachable
+   * past its grace period. Mirrors lockOrSignOut(), but the action comes from
+   * the ConnectionLoss policy and the sign-out carries a reason so FELT can
+   * explain why the session ended.
+   *
+   * @returns {boolean} Whether the session was ended.
+   */
+  endSessionForConnectionLoss() {
+    const action = this.connectionLossAction;
+    if (action === "none" || !Services.felt?.isFeltBrowser()) {
+      return false;
+    }
+
+    this._skipSignoutPrompt = true;
+    try {
+      if (action !== "lock") {
+        Services.felt.performSignoutWithReason("networkLoss");
+        return true;
+      }
+
+      // ConnectionLoss decides this independently of the close-locking pref
+      // _syncCloseLockIntent() normally derives the intent from, so push it
+      // before the quit it rides out on. The reason goes with it so FELT
+      // explains the lock rather than just vanishing on the user.
+      Services.felt.setCloseLockIntent(true, "networkLoss");
+      if (!Services.startup.quit(Ci.nsIAppStartup.eAttemptQuit)) {
+        // Vetoed by a beforeunload handler. Put the close-driven intent back
+        // and report the session as still running so a later poll retries.
+        this._skipSignoutPrompt = false;
+        this._syncCloseLockIntent();
+        return false;
+      }
+    } catch (e) {
+      // The FELT IPC calls only throw when the browser-side client is missing,
+      // which should not happen in a FELT browser. The console is gone, so
+      // ending the session still matters more than how it ends.
+      lazy.log.warn(`Unable to ${action} on connection loss: ${e}`);
+      Services.startup.quit(Ci.nsIAppStartup.eAttemptQuit);
+    }
+    return true;
   },
 };
