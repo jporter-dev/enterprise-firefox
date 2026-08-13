@@ -286,7 +286,7 @@ export class FeltProcessParent extends JSProcessActorParent {
           }
 
           case "felt-firefox-logout":
-            gFeltProcessParentInstance.logoutFirefox();
+            gFeltProcessParentInstance.logoutFirefox(aData);
             break;
 
           case "felt-firefox-tokens": {
@@ -863,8 +863,10 @@ export class FeltProcessParent extends JSProcessActorParent {
 
   /**
    * Perform all the logout operations on FELT side.
+   *
+   * @param {string} reason - The reason for logout, default is empty string for user-initiated logout.
    */
-  logoutFirefox() {
+  logoutFirefox(reason = "") {
     if (!Services.felt.isFeltUI()) {
       throw new Error("Logout handling should only happen on FELT side.");
     }
@@ -875,7 +877,9 @@ export class FeltProcessParent extends JSProcessActorParent {
     }
 
     lazy.log.debug(
-      `Logout, waiting on process ${gFeltProcessParentInstance.proc.pid}`
+      `Logout (reason: ${reason || "user"}), waiting on process ${
+        gFeltProcessParentInstance.proc.pid
+      }`
     );
     gFeltProcessParentInstance.logoutReported = true;
 
@@ -891,9 +895,16 @@ export class FeltProcessParent extends JSProcessActorParent {
         Services.felt.clearTokens();
         Services.felt.shutdownFirefox();
         gFeltProcessParentInstance.proc.exitPromise.then(_ => {
-          Services.cpmm.sendAsyncMessage("FeltParent:FirefoxLogoutExit", {
-            reason: "logout",
-          });
+          if (reason) {
+            Services.cpmm.sendAsyncMessage(
+              "FeltParent:FirefoxSessionInterrupted",
+              { reason }
+            );
+          } else {
+            Services.cpmm.sendAsyncMessage("FeltParent:FirefoxLogoutExit", {
+              reason: "logout",
+            });
+          }
         });
       });
   }
