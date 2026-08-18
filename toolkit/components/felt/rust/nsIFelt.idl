@@ -103,6 +103,9 @@ interface nsIFelt : nsISupports {
   void performSignout();
 
   [must_use]
+  void performLock();
+
+  [must_use]
   void shutdownFirefox();
 
   [must_use]

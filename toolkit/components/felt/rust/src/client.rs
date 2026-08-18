@@ -103,6 +103,17 @@ impl FeltIpcClient {
         }
     }
 
+    pub fn notify_lock(&self) {
+        trace!("FeltIpcClient::notify_lock()");
+        let msg = FeltMessage::Lock;
+        if let Some(tx) = &self.tx {
+            match tx.send(msg) {
+                Ok(()) => trace!("FeltIpcClient::notify_lock() SENT"),
+                Err(err) => trace!("FeltIpcClient::notify_lock() TX ERROR: {}", err),
+            }
+        }
+    }
+
     pub fn notify_refresh_tokens(&self) {
         trace!("FeltIpcClient::notify_refresh_tokens()");
         let msg = FeltMessage::RefreshTokens;
@@ -496,6 +507,12 @@ impl FeltClientThread {
     pub fn request_update_check(&self) -> nsresult {
         trace!("FeltClientThread::request_update_check()");
         self.ipc_client.borrow().request_update_check()
+    }
+
+    pub fn notify_lock(&self) {
+        trace!("FeltClientThread::notify_lock()");
+        let client = self.ipc_client.borrow();
+        client.notify_lock();
     }
 
     pub fn notify_refresh_tokens(&self) {
