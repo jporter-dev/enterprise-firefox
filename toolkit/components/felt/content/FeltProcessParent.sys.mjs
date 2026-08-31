@@ -1196,9 +1196,12 @@ export class FeltProcessParent extends JSProcessActorParent {
             // would run in the profile shared by every user.
             if (!user_id) {
               lazy.log.error("SSO callback carried no user id");
-              Services.cpmm.sendAsyncMessage("FeltParent:FirefoxLaunchFailure", {
-                errorType: "loginFailed",
-              });
+              Services.cpmm.sendAsyncMessage(
+                "FeltParent:FirefoxLaunchFailure",
+                {
+                  errorType: "loginFailed",
+                }
+              );
               break;
             }
 
@@ -1238,9 +1241,12 @@ export class FeltProcessParent extends JSProcessActorParent {
               );
             } catch (e) {
               lazy.log.error("One-time-token redemption failed:", e);
-              Services.cpmm.sendAsyncMessage("FeltParent:FirefoxLaunchFailure", {
-                errorType: "loginFailed",
-              });
+              Services.cpmm.sendAsyncMessage(
+                "FeltParent:FirefoxLaunchFailure",
+                {
+                  errorType: "loginFailed",
+                }
+              );
               break;
             }
 
