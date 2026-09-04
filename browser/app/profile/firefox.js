@@ -532,8 +532,13 @@ pref("browser.urlbar.trackerCount.featureGate", false);
 pref("browser.urlbar.trackerCount.enabled", true);
 
 pref("browser.urlbar.trustPanel.featureGate", true);
+#ifdef MOZ_ENTERPRISE
+pref("browser.urlbar.trustPanel.breachAlerts.featureGate", false);
+pref("browser.urlbar.trustPanel.breachAlerts", false);
+#else
 pref("browser.urlbar.trustPanel.breachAlerts.featureGate", true);
 pref("browser.urlbar.trustPanel.breachAlerts", true);
+#endif
 
 // Whether or not Unified Search Button is shown always.
 pref("browser.urlbar.unifiedSearchButton.always", false);
