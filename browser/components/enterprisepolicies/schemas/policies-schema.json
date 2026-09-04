@@ -4179,16 +4179,29 @@
         }
       },
       "x-restart-required": false,
-      "description": "Control whether the managed session is signed out or locked when the browser closes.",
+      "description": "Control whether the managed session is signed out or locked when the browser closes or restarts.",
       "examples": [
         {
           "BrowserClose": {
+            "Action": "lock"
+          },
+          "BrowserRestart": {
             "Action": "lock"
           }
         }
       ],
       "properties": {
         "BrowserClose": {
+          "type": "object",
+          "properties": {
+            "Action": {
+              "type": "string",
+              "enum": ["signout", "lock"]
+            }
+          },
+          "required": ["Action"]
+        },
+        "BrowserRestart": {
           "type": "object",
           "properties": {
             "Action": {

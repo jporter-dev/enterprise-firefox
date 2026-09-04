@@ -34,6 +34,7 @@ pref("app.update.checkOnlyInstance.enabled", false);
 pref("app.update.background.enabled", true);
 // Allow locking the session (persist behind OS auth) instead of signing out.
 pref("enterprise.locking.browser_close", false, locked);
+pref("enterprise.locking.browser_restart", false, locked);
 #endif
 
 // Set add-ons abuse report related prefs specific to Firefox Desktop.

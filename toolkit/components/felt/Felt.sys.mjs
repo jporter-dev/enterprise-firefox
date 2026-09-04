@@ -293,7 +293,7 @@ export class Felt {
           "FeltParent:FirefoxRestartUpdateExit",
           this
         );
-        Services.startup.quit(
+        this.#quitOrHoldForShutdown(
           Ci.nsIAppStartup.eAttemptQuit | Ci.nsIAppStartup.eRestart
         );
         break;
@@ -370,13 +370,13 @@ export class Felt {
     }
   }
 
-  // The isBlockingShutdown branch is test-only: it keeps FELT alive after the
-  // browser exits for follow-up processing.
-  #quitOrHoldForShutdown() {
+  // The isBlockingShutdown branch is a test-only path that keeps FELT alive
+  // after the browser exits so tests can run follow-up processing.
+  #quitOrHoldForShutdown(
+    quitMode = Ci.nsIAppStartup.eAttemptQuit | Ci.nsIAppStartup.eConsiderQuit
+  ) {
     if (!lazy.isBlockingShutdown()) {
-      Services.startup.quit(
-        Ci.nsIAppStartup.eAttemptQuit | Ci.nsIAppStartup.eConsiderQuit
-      );
+      Services.startup.quit(quitMode);
     } else if (!this._win) {
       Services.felt.makeBackgroundProcess(false);
       this.showWindow();
