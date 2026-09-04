@@ -2326,7 +2326,11 @@ pref("nimbus.profilesdatastoreservice.sync.enabled", true);
 #endif
 
 // Enable Rollouts by default.
+#ifdef MOZ_ENTERPRISE
+pref("nimbus.rollouts.enabled", false);
+#else
 pref("nimbus.rollouts.enabled", true);
+#endif
 
 // Nimbus QA prefs. Used to monitor pref-setting test experiments.
 pref("nimbus.qa.pref-1", "default");
@@ -3166,7 +3170,7 @@ pref("app.normandy.shieldLearnMoreUrl", "https://support.mozilla.org/1/firefox/%
 #endif
 pref("app.normandy.last_seen_buildid", "");
 pref("app.normandy.onsync_skew_sec", 600);
-#ifdef MOZ_DATA_REPORTING
+#if defined(MOZ_DATA_REPORTING) && !defined(MOZ_ENTERPRISE)
   pref("app.shield.optoutstudies.enabled", true);
 #else
   pref("app.shield.optoutstudies.enabled", false);
@@ -3207,7 +3211,11 @@ pref("toolkit.coverage.endpoint.base", "https://coverage.mozilla.org");
 #endif
 
 // Enable personalized extension recommendations
+#ifdef MOZ_ENTERPRISE
+pref("browser.discovery.enabled", false);
+#else
 pref("browser.discovery.enabled", true);
+#endif
 
 pref("browser.engagement.recent_visited_origins.expiry", 86400); // 24 * 60 * 60 (24 hours in seconds)
 pref("browser.engagement.downloads-button.has-used", false);
