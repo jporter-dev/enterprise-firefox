@@ -49,11 +49,14 @@ add_task(async function test_policy_feedback_commands() {
   /* from browser/base/content/utilityOverlay.js */
   buildHelpMenu();
 
+  // The feedbackPage menuitem is compiled out of enterprise builds.
   let feedbackPageMenu = document.getElementById("feedbackPage");
-  ok(
-    feedbackPageMenu.disabled,
-    "The `Submit Feedback...` item should be disabled"
-  );
+  if (feedbackPageMenu) {
+    ok(
+      feedbackPageMenu.disabled,
+      "The `Submit Feedback...` item should be disabled"
+    );
+  }
 
   await checkItemsAreDisabled(NORMAL_PAGE);
   await checkItemsAreDisabled(PHISH_PAGE);

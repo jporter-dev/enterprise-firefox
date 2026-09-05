@@ -43,3 +43,23 @@ add_task(async function test_switch_device_absent_from_app_menu() {
 
   await gCUITestUtils.hideMainMenu();
 });
+
+add_task(async function test_share_ideas_absent_from_menubar() {
+  Assert.equal(
+    document.getElementById("feedbackPage"),
+    null,
+    "feedbackPage menuitem should not be compiled on enterprise builds"
+  );
+});
+
+add_task(async function test_share_ideas_absent_from_app_menu() {
+  let helpView = await openHelpView();
+
+  Assert.equal(
+    helpView.querySelector("#appMenu_feedbackPage"),
+    null,
+    "appMenu_feedbackPage should not be present on enterprise builds"
+  );
+
+  await gCUITestUtils.hideMainMenu();
+});

@@ -527,8 +527,10 @@ function openSwitchingDevicesPage() {
 }
 
 function buildHelpMenu() {
-  document.getElementById("feedbackPage").disabled =
-    !Services.policies.isAllowed("feedbackCommands");
+  if (!AppConstants.MOZ_ENTERPRISE) {
+    document.getElementById("feedbackPage").disabled =
+      !Services.policies.isAllowed("feedbackCommands");
+  }
 
   document.getElementById("helpSafeMode").disabled =
     !Services.policies.isAllowed("safeMode");
