@@ -146,7 +146,7 @@ export class _CustomizeMenu extends React.PureComponent {
     // @nova-cleanup(remove-pref): remove nova pref
     const novaEnabled = this.props.Prefs.values[PREF_NOVA_ENABLED];
     // Browser-wide Nova gate for the theme picker (distinct from novaEnabled).
-    const { browserNovaEnabled, lockedPrefs } = this.props.Prefs.values;
+    const { browserNovaEnabled } = this.props.Prefs.values;
 
     return (
       <span>
@@ -267,7 +267,7 @@ export class _CustomizeMenu extends React.PureComponent {
                   this.props.showWidgetsManagementPanel
                 }
                 widgetsEnabled={this.props.widgetsEnabled}
-                lockedPrefs={lockedPrefs}
+                prefs={this.props.Prefs.values}
               />
             </div>
           </dialog>

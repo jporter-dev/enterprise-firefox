@@ -8,6 +8,7 @@ import React, { useEffect, useRef } from "react";
 import { batch, useDispatch, useSelector } from "react-redux";
 import { actionCreators as ac, actionTypes as at } from "common/Actions.mjs";
 import { WIDGET_REGISTRY, resolveWidgetSize } from "common/WidgetsRegistry.mjs";
+import { isPrefLockedOff } from "content-src/lib/locked-prefs.mjs";
 // eslint-disable-next-line no-shadow
 import { CSSTransition } from "react-transition-group";
 
@@ -129,6 +130,26 @@ function WidgetsManagementPanel({
   } = enabledWidgets;
   const isRTL = typeof document !== "undefined" && document.dir === "rtl";
   const arrowIconSrc = `chrome://global/skin/icons/shaft-arrow-${isRTL ? "right" : "left"}.svg`;
+  // A widget blocked by policy has its pref locked off, so its toggle could
+  // only ever read "off".
+  const lockedOff = pref => isPrefLockedOff(prefs, pref);
+  const show = {
+    weather: mayHaveWeather && !lockedOff("widgets.weather.enabled"),
+    timer: mayHaveTimerWidget && !lockedOff("widgets.focusTimer.enabled"),
+    lists: mayHaveListsWidget && !lockedOff("widgets.lists.enabled"),
+    sports: mayHaveSportsWidget && !lockedOff("widgets.sportsWidget.enabled"),
+    clocks: mayHaveClocksWidget && !lockedOff("widgets.clocks.enabled"),
+    privacy: mayHavePrivacyWidget && !lockedOff("widgets.privacy.enabled"),
+    crossword:
+      mayHaveCrosswordWidget && !lockedOff("widgets.crossword.enabled"),
+    stocks: mayHaveStocksWidget && !lockedOff("widgets.stocks.enabled"),
+    picture:
+      mayHavePictureOfTheDayWidget &&
+      !lockedOff("widgets.pictureOfTheDay.enabled"),
+    recentSearches:
+      mayHaveRecentSearchesWidget &&
+      !lockedOff("widgets.recentSearches.enabled"),
+  };
 
   return (
     <div id="widgets-management-panel" className="widgets-mgmt-panel-container">
@@ -158,7 +179,7 @@ function WidgetsManagementPanel({
               <h2 data-l10n-id="newtab-widget-manage-title"></h2>
             </div>
             <div className="settings-widgets">
-              {mayHaveWeather && (
+              {show.weather && (
                 <div id="weather-section" className="section">
                   <moz-toggle
                     id="weather-toggle"
@@ -170,7 +191,7 @@ function WidgetsManagementPanel({
                   />
                 </div>
               )}
-              {mayHaveTimerWidget && (
+              {show.timer && (
                 <div id="timer-widget-section" className="section">
                   <moz-toggle
                     id="timer-toggle"
@@ -182,7 +203,7 @@ function WidgetsManagementPanel({
                   />
                 </div>
               )}
-              {mayHaveListsWidget && (
+              {show.lists && (
                 <div id="lists-widget-section" className="section">
                   <moz-toggle
                     id="lists-toggle"
@@ -194,7 +215,7 @@ function WidgetsManagementPanel({
                   />
                 </div>
               )}
-              {mayHaveSportsWidget && (
+              {show.sports && (
                 <div id="sports-widget-section" className="section">
                   <moz-toggle
                     id="sports-widget-toggle"
@@ -206,7 +227,7 @@ function WidgetsManagementPanel({
                   />
                 </div>
               )}
-              {mayHaveClocksWidget && (
+              {show.clocks && (
                 <div id="clocks-widget-section" className="section">
                   <moz-toggle
                     id="clocks-toggle"
@@ -218,7 +239,7 @@ function WidgetsManagementPanel({
                   />
                 </div>
               )}
-              {mayHavePrivacyWidget && (
+              {show.privacy && (
                 <div id="privacy-widget-section" className="section">
                   <moz-toggle
                     id="privacy-toggle"
@@ -230,7 +251,7 @@ function WidgetsManagementPanel({
                   />
                 </div>
               )}
-              {mayHaveCrosswordWidget && (
+              {show.crossword && (
                 <div id="crossword-widget-section" className="section">
                   <moz-toggle
                     id="crossword-toggle"
@@ -242,7 +263,7 @@ function WidgetsManagementPanel({
                   ></moz-toggle>
                 </div>
               )}
-              {mayHaveStocksWidget && (
+              {show.stocks && (
                 <div id="stocks-widget-section" className="section">
                   <moz-toggle
                     id="stocks-toggle"
@@ -254,7 +275,7 @@ function WidgetsManagementPanel({
                   />
                 </div>
               )}
-              {mayHavePictureOfTheDayWidget && (
+              {show.picture && (
                 <div id="picture-widget-section" className="section">
                   <moz-toggle
                     id="picture-toggle"
@@ -266,7 +287,7 @@ function WidgetsManagementPanel({
                   />
                 </div>
               )}
-              {mayHaveRecentSearchesWidget && (
+              {show.recentSearches && (
                 <div id="recent-searches-widget-section" className="section">
                   <moz-toggle
                     id="recent-searches-toggle"

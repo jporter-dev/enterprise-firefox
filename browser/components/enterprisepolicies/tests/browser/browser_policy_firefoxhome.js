@@ -244,16 +244,7 @@ add_task(async function test_firefoxhome_widgets_blocked() {
   await SpecialPowers.popPrefEnv();
 });
 
-add_task(async function test_firefoxhome_customize_panel_locked() {
-  await setupPolicyEngineWithJson({
-    policies: {
-      FirefoxHome: {
-        TopSites: false,
-        Locked: true,
-      },
-    },
-  });
-
+async function withCustomizePanel(task) {
   let tab = await BrowserTestUtils.openNewForegroundTab({
     gBrowser,
     opening: "about:home",
@@ -270,22 +261,13 @@ add_task(async function test_firefoxhome_customize_panel_locked() {
     );
     customizeButton.click();
 
-    let dialog = await ContentTaskUtils.waitForCondition(
+    await ContentTaskUtils.waitForCondition(
       () => content.document.querySelector("dialog.customize-menu[open]"),
       "Wait for the customize panel to open"
     );
-
-    // `disabled` is a lit reactive property, not a WebIDL attribute, so it is
-    // not visible through the Xray wrapper.
-    ok(
-      dialog.querySelector("#shortcuts-toggle").wrappedJSObject.disabled,
-      "Shortcuts toggle should be disabled when feeds.topsites is locked"
-    );
-    ok(
-      !dialog.querySelector("#row-selector").wrappedJSObject.disabled,
-      "Row selector should stay enabled when its own pref is not locked"
-    );
   });
+
+  await SpecialPowers.spawn(tab.linkedBrowser, [], task);
 
   BrowserTestUtils.removeTab(tab);
   await setupPolicyEngineWithJson({
@@ -293,6 +275,125 @@ add_task(async function test_firefoxhome_customize_panel_locked() {
       FirefoxHome: {},
     },
   });
+}
+
+add_task(async function test_firefoxhome_customize_panel_locked_on() {
+  await setupPolicyEngineWithJson({
+    policies: {
+      FirefoxHome: {
+        TopSites: true,
+        Locked: true,
+      },
+    },
+  });
+
+  await withCustomizePanel(function () {
+    let dialog = content.document.querySelector("dialog.customize-menu[open]");
+    // `disabled` is a lit reactive property, not a WebIDL attribute, so it is
+    // not visible through the Xray wrapper.
+    ok(
+      dialog.querySelector("#shortcuts-toggle").wrappedJSObject.disabled,
+      "Shortcuts toggle should be disabled when feeds.topsites is locked on"
+    );
+    ok(
+      !dialog.querySelector("#row-selector").wrappedJSObject.disabled,
+      "Row selector should stay enabled when its own pref is not locked"
+    );
+  });
+});
+
+add_task(async function test_firefoxhome_customize_panel_locked_off() {
+  // Without these the rows are absent for reasons of their own (region gating),
+  // and the assertions below would pass whatever the policy did.
+  await SpecialPowers.pushPrefEnv({
+    set: [
+      ["browser.newtabpage.activity-stream.system.showWeather", true],
+      ["browser.newtabpage.activity-stream.feeds.system.topstories", true],
+    ],
+  });
+
+  await setupPolicyEngineWithJson({
+    policies: {
+      FirefoxHome: {
+        TopSites: false,
+        Stories: false,
+        Weather: false,
+        Locked: true,
+      },
+    },
+  });
+
+  await withCustomizePanel(function () {
+    let dialog = content.document.querySelector("dialog.customize-menu[open]");
+    is(
+      dialog.querySelector("#shortcuts-section"),
+      null,
+      "Shortcuts row should be gone when feeds.topsites is locked off"
+    );
+    is(
+      dialog.querySelector("#pocket-section"),
+      null,
+      "Recommended Stories row should be gone when its pref is locked off"
+    );
+    is(
+      dialog.querySelector("#weather-section"),
+      null,
+      "Weather row should be gone when its pref is locked off"
+    );
+  });
+
+  await SpecialPowers.popPrefEnv();
+});
+
+add_task(async function test_firefoxhome_customize_panel_widget_blocked() {
+  await SpecialPowers.pushPrefEnv({
+    set: [
+      // Stand in for a rollout that has made these two widgets available.
+      ["browser.newtabpage.activity-stream.widgets.system.enabled", true],
+      ["browser.newtabpage.activity-stream.widgets.system.lists.enabled", true],
+      [
+        "browser.newtabpage.activity-stream.widgets.system.clocks.enabled",
+        true,
+      ],
+      // Nova collapses the widget drawer, and with it the button that opens
+      // the "Manage widgets" subpanel, while the container is off.
+      ["browser.newtabpage.activity-stream.widgets.enabled", true],
+    ],
+  });
+
+  await setupPolicyEngineWithJson({
+    policies: {
+      FirefoxHome: {
+        Widgets: {
+          Blocked: ["lists"],
+        },
+      },
+    },
+  });
+
+  await withCustomizePanel(async function () {
+    let dialog = content.document.querySelector("dialog.customize-menu[open]");
+    // @nova-cleanup(remove-conditional): Nova nests the widget toggles behind
+    // a "Manage widgets" subpanel; the classic layout renders them inline.
+    let manageButton = dialog.querySelector(
+      "#widgets-management-panel moz-box-button"
+    );
+    if (manageButton) {
+      manageButton.click();
+    }
+
+    await ContentTaskUtils.waitForCondition(
+      () => dialog.querySelector("#clocks-widget-section"),
+      "Wait for the widget toggles to render"
+    );
+    is(
+      dialog.querySelector("#lists-widget-section"),
+      null,
+      "Blocked widget's toggle should be gone"
+    );
+  });
+
+  await SpecialPowers.popPrefEnv();
 });
 
 add_task(async function test_firefoxhome_support_firefox_sponsored_locked() {

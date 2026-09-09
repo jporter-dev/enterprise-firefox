@@ -358,6 +358,7 @@ describe("<CustomizeMenu>", () => {
         ...DEFAULT_STATE.Prefs,
         values: {
           ...DEFAULT_STATE.Prefs.values,
+          "feeds.topsites": true,
           lockedPrefs: ["feeds.topsites"],
         },
       },
@@ -379,6 +380,132 @@ describe("<CustomizeMenu>", () => {
     );
   });
 
+  it("drops the row of a pref locked off and keeps the ones locked on", () => {
+    const state = {
+      ...DEFAULT_STATE,
+      Prefs: {
+        ...DEFAULT_STATE.Prefs,
+        values: {
+          ...DEFAULT_STATE.Prefs.values,
+          "feeds.topsites": false,
+          "feeds.section.topstories": true,
+          lockedPrefs: ["feeds.topsites", "feeds.section.topstories"],
+        },
+      },
+    };
+
+    wrapper = mount(
+      <WrapWithProvider state={state}>
+        <CustomizeMenu {...DEFAULT_PROPS} showing={true} />
+      </WrapWithProvider>
+    );
+
+    assert.isFalse(
+      wrapper.find("#shortcuts-section").exists(),
+      "the row of the pref locked off is gone"
+    );
+    assert.isTrue(
+      wrapper.find("#pocket-section").exists(),
+      "the row of the pref locked on stays"
+    );
+    assert.isTrue(
+      wrapper.find("#pocket-toggle").getDOMNode().disabled,
+      "the row of the pref locked on is disabled"
+    );
+  });
+
+  it("drops the weather row when its pref is locked off", () => {
+    const state = {
+      ...DEFAULT_STATE,
+      Prefs: {
+        ...DEFAULT_STATE.Prefs,
+        values: {
+          ...DEFAULT_STATE.Prefs.values,
+          showWeather: false,
+          lockedPrefs: ["showWeather"],
+        },
+      },
+    };
+
+    wrapper = mount(
+      <WrapWithProvider state={state}>
+        <CustomizeMenu {...DEFAULT_PROPS} showing={true} />
+      </WrapWithProvider>
+    );
+
+    assert.isFalse(
+      wrapper.find("#weather-section").exists(),
+      "the weather row is gone"
+    );
+  });
+
+  it("drops the widgets row when the container pref is locked off", () => {
+    const state = {
+      ...NOVA_STATE,
+      Prefs: {
+        ...NOVA_STATE.Prefs,
+        values: {
+          ...NOVA_STATE.Prefs.values,
+          "widgets.enabled": false,
+          lockedPrefs: ["widgets.enabled"],
+        },
+      },
+    };
+
+    wrapper = mount(
+      <WrapWithProvider state={state}>
+        <CustomizeMenu
+          {...DEFAULT_PROPS}
+          showing={true}
+          mayHaveWidgets={true}
+          mayHaveListsWidget={true}
+        />
+      </WrapWithProvider>
+    );
+
+    assert.isFalse(
+      wrapper.find("#widgets-section").exists(),
+      "the widgets container row is gone"
+    );
+  });
+
+  it("drops a blocked widget's toggle and keeps the others", () => {
+    const state = {
+      ...NOVA_STATE,
+      Prefs: {
+        ...NOVA_STATE.Prefs,
+        values: {
+          ...NOVA_STATE.Prefs.values,
+          "widgets.enabled": true,
+          "widgets.lists.enabled": false,
+          lockedPrefs: ["widgets.lists.enabled"],
+        },
+      },
+    };
+
+    wrapper = mount(
+      <WrapWithProvider state={state}>
+        <CustomizeMenu
+          {...DEFAULT_PROPS}
+          showing={true}
+          showWidgetsManagementPanel={true}
+          mayHaveWidgets={true}
+          mayHaveListsWidget={true}
+          mayHaveTimerWidget={true}
+        />
+      </WrapWithProvider>
+    );
+
+    assert.isFalse(
+      wrapper.find("#lists-widget-section").exists(),
+      "the blocked widget's toggle is gone"
+    );
+    assert.isTrue(
+      wrapper.find("#timer-widget-section").exists(),
+      "a widget that was not blocked keeps its toggle"
+    );
+  });
+
   it("re-enables a control when its pref is unlocked", () => {
     const store = createStore(combineReducers(reducers), {
       ...DEFAULT_STATE,
@@ -386,6 +513,7 @@ describe("<CustomizeMenu>", () => {
         ...DEFAULT_STATE.Prefs,
         values: {
           ...DEFAULT_STATE.Prefs.values,
+          "feeds.topsites": true,
           lockedPrefs: ["feeds.topsites"],
         },
       },

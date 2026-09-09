@@ -10,6 +10,7 @@ import { ThemesManagementPanel } from "../ThemesManagementPanel/ThemesManagement
 import { WallpaperCategories } from "../../WallpaperCategories/WallpaperCategories";
 // @nova-cleanup(move-directory): Update import path after WidgetsManagementPanel moves to components/CustomizeMenu/
 import { WidgetsManagementPanel } from "content-src/components/Nova/CustomizeMenu/WidgetsManagementPanel/WidgetsManagementPanel";
+import { isPrefLockedOff } from "content-src/lib/locked-prefs.mjs";
 
 const PREF_INFERRED_PERSONALIZATION =
   "discoverystream.sections.personalization.inferred.user.enabled";
@@ -192,11 +193,62 @@ export class ContentSection extends React.PureComponent {
     }
   }
 
+  /**
+   * Resolves which rows the panel shows, dropping the ones whose pref an
+   * administrator has locked off. See isPrefLockedOff.
+   *
+   * @returns {object} one boolean per policy-gated row, plus `weatherPref`,
+   *   the pref the weather toggle is bound to in this layout.
+   */
+  visibleRows() {
+    const {
+      mayHaveWeather,
+      mayHaveWidgets,
+      mayHaveTimerWidget,
+      mayHaveListsWidget,
+      mayHaveSportsWidget,
+      mayHaveClocksWidget,
+      mayHavePrivacyWidget,
+      mayHaveCrosswordWidget,
+      mayHaveStocksWidget,
+      mayHavePictureOfTheDayWidget,
+      mayHaveRecentSearchesWidget,
+      pocketRegion,
+      novaEnabled,
+      prefs = {},
+    } = this.props;
+    const lockedOff = pref => isPrefLockedOff(prefs, pref);
+
+    // @nova-cleanup(remove-conditional): Remove novaEnabled conditional; keep "widgets.weather.enabled"
+    const weatherPref = novaEnabled ? "widgets.weather.enabled" : "showWeather";
+
+    return {
+      weatherPref,
+      weather: mayHaveWeather && !lockedOff(weatherPref),
+      shortcuts: !lockedOff("feeds.topsites"),
+      pocket: pocketRegion && !lockedOff("feeds.section.topstories"),
+      widgets: mayHaveWidgets && !lockedOff("widgets.enabled"),
+      lists: mayHaveListsWidget && !lockedOff("widgets.lists.enabled"),
+      timer: mayHaveTimerWidget && !lockedOff("widgets.focusTimer.enabled"),
+      sports: mayHaveSportsWidget && !lockedOff("widgets.sportsWidget.enabled"),
+      clocks: mayHaveClocksWidget && !lockedOff("widgets.clocks.enabled"),
+      privacy: mayHavePrivacyWidget && !lockedOff("widgets.privacy.enabled"),
+      crossword:
+        mayHaveCrosswordWidget && !lockedOff("widgets.crossword.enabled"),
+      stocks: mayHaveStocksWidget && !lockedOff("widgets.stocks.enabled"),
+      picture:
+        mayHavePictureOfTheDayWidget &&
+        !lockedOff("widgets.pictureOfTheDay.enabled"),
+      recentSearches:
+        mayHaveRecentSearchesWidget &&
+        !lockedOff("widgets.recentSearches.enabled"),
+    };
+  }
+
   render() {
     const {
       enabledSections,
       enabledWidgets,
-      pocketRegion,
       mayHaveInferredPersonalization,
       mayHaveWeather,
       mayHaveWebNotifications,
@@ -230,8 +282,10 @@ export class ContentSection extends React.PureComponent {
       toggleWidgetsManagementPanel,
       showWidgetsManagementPanel,
       widgetsEnabled,
-      lockedPrefs = [],
+      prefs = {},
     } = this.props;
+    const lockedPrefs = prefs.lockedPrefs ?? [];
+    const show = this.visibleRows();
     const {
       topSitesEnabled,
       pocketEnabled,
@@ -304,14 +358,14 @@ export class ContentSection extends React.PureComponent {
               </div>
             </>
           )}
-          {mayHaveWidgets && !novaEnabled && (
+          {show.widgets && !novaEnabled && (
             <div className="widgets-section">
               <div className="category-header">
                 <h2 data-l10n-id="newtab-custom-widget-section-title"></h2>
               </div>
               <div className="settings-widgets">
                 {/* Weather */}
-                {mayHaveWeather && (
+                {show.weather && (
                   <div id="weather-section" className="section">
                     <moz-toggle
                       id="weather-toggle"
@@ -325,7 +379,7 @@ export class ContentSection extends React.PureComponent {
                 )}
 
                 {/* Lists */}
-                {mayHaveListsWidget && (
+                {show.lists && (
                   <div id="lists-widget-section" className="section">
                     <moz-toggle
                       id="lists-toggle"
@@ -339,7 +393,7 @@ export class ContentSection extends React.PureComponent {
                 )}
 
                 {/* Timer */}
-                {mayHaveTimerWidget && (
+                {show.timer && (
                   <div id="timer-widget-section" className="section">
                     <moz-toggle
                       id="timer-toggle"
@@ -353,7 +407,7 @@ export class ContentSection extends React.PureComponent {
                 )}
 
                 {/* Clocks */}
-                {mayHaveClocksWidget && (
+                {show.clocks && (
                   <div id="clocks-widget-section" className="section">
                     <moz-toggle
                       id="clocks-toggle"
@@ -367,7 +421,7 @@ export class ContentSection extends React.PureComponent {
                 )}
 
                 {/* Privacy */}
-                {mayHavePrivacyWidget && (
+                {show.privacy && (
                   <div id="privacy-widget-section" className="section">
                     <moz-toggle
                       id="privacy-toggle"
@@ -381,7 +435,7 @@ export class ContentSection extends React.PureComponent {
                 )}
 
                 {/* Crossword */}
-                {mayHaveCrosswordWidget && (
+                {show.crossword && (
                   <div id="crossword-widget-section" className="section">
                     {/* TODO: Add in fluent string when correct preview files are set up */}
                     <moz-toggle
@@ -396,7 +450,7 @@ export class ContentSection extends React.PureComponent {
                 )}
 
                 {/* Stocks */}
-                {mayHaveStocksWidget && (
+                {show.stocks && (
                   <div id="stocks-widget-section" className="section">
                     <moz-toggle
                       id="stocks-toggle"
@@ -409,7 +463,7 @@ export class ContentSection extends React.PureComponent {
                   </div>
                 )}
                 {/* Picture of the day */}
-                {mayHavePictureOfTheDayWidget && (
+                {show.picture && (
                   <div id="picture-widget-section" className="section">
                     <moz-toggle
                       id="picture-toggle"
@@ -422,7 +476,7 @@ export class ContentSection extends React.PureComponent {
                   </div>
                 )}
                 {/* Recent searches */}
-                {mayHaveRecentSearchesWidget && (
+                {show.recentSearches && (
                   <div id="recent-searches-widget-section" className="section">
                     <moz-toggle
                       id="recent-searches-toggle"
@@ -439,103 +493,102 @@ export class ContentSection extends React.PureComponent {
           )}
           <div className="settings-toggles">
             {/* Note: If widgets are enabled, the weather toggle will be moved under Widgets subsection */}
-            {
-              // @nova-cleanup(remove-conditional): Remove novaEnabled conditional on data-preference; replace with data-preference="widgets.weather.enabled"
-              !mayHaveWidgets && mayHaveWeather && (
-                <div id="weather-section" className="section">
-                  <moz-toggle
-                    id="weather-toggle"
-                    pressed={weatherEnabled || null}
-                    ontoggle={this.onPreferenceSelect}
-                    data-preference={
-                      novaEnabled ? "widgets.weather.enabled" : "showWeather"
-                    }
-                    data-event-source="WEATHER"
-                    data-l10n-id="newtab-custom-weather-toggle"
-                  />
-                </div>
-              )
-            }
+            {!mayHaveWidgets && show.weather && (
+              <div id="weather-section" className="section">
+                <moz-toggle
+                  id="weather-toggle"
+                  pressed={weatherEnabled || null}
+                  ontoggle={this.onPreferenceSelect}
+                  data-preference={show.weatherPref}
+                  data-event-source="WEATHER"
+                  data-l10n-id="newtab-custom-weather-toggle"
+                />
+              </div>
+            )}
 
-            <span className="divider" role="separator"></span>
+            {show.shortcuts && (
+              <span className="divider" role="separator"></span>
+            )}
 
-            <div id="shortcuts-section" className="section">
-              <moz-toggle
-                id="shortcuts-toggle"
-                pressed={topSitesEnabled || null}
-                ontoggle={this.onPreferenceSelect}
-                data-preference="feeds.topsites"
-                data-event-source="TOP_SITES"
-                data-l10n-id={
-                  novaEnabled
-                    ? "newtab-custom-shortcuts-nova"
-                    : "newtab-custom-shortcuts-toggle"
-                }
-              >
-                <div slot="nested">
-                  <div className="more-info-top-wrapper">
-                    <div
-                      className="more-information"
-                      ref={this.topSitesDrawerRef}
-                    >
-                      <moz-select
-                        id="row-selector"
-                        className="selector"
-                        name="row-count"
-                        data-preference="topSitesRows"
-                        value={topSitesRowsCount}
-                        aria-labelledby="custom-shortcuts-title"
-                        onChange={this.onPreferenceSelect}
-                        // @nova-cleanup(remove-conditional): Remove novaEnabled conditional and spread operator, keep the attributes
-                        {...(novaEnabled && {
-                          "data-l10n-id": "newtab-custom-row-description",
-                          inputLayout: "inline-end",
-                        })}
+            {show.shortcuts && (
+              <div id="shortcuts-section" className="section">
+                <moz-toggle
+                  id="shortcuts-toggle"
+                  pressed={topSitesEnabled || null}
+                  ontoggle={this.onPreferenceSelect}
+                  data-preference="feeds.topsites"
+                  data-event-source="TOP_SITES"
+                  data-l10n-id={
+                    novaEnabled
+                      ? "newtab-custom-shortcuts-nova"
+                      : "newtab-custom-shortcuts-toggle"
+                  }
+                >
+                  <div slot="nested">
+                    <div className="more-info-top-wrapper">
+                      <div
+                        className="more-information"
+                        ref={this.topSitesDrawerRef}
                       >
-                        {[1, 2, 3, 4].map(num =>
-                          // @nova-cleanup(remove-conditional): Remove the conditional and "else" block after Nova lands
-                          novaEnabled ? (
-                            <moz-option
-                              key={num}
-                              value={String(num)}
-                              label={String(num)}
-                            />
-                          ) : (
-                            <moz-option
-                              key={num}
-                              value={String(num)}
-                              data-l10n-id="newtab-custom-row-selector2"
-                              data-l10n-args={`{"num": ${num}}`}
-                            />
-                          )
-                        )}
-                      </moz-select>
-                    </div>
-                    {mayHaveWebNotifications && (
-                      <div className="more-information">
-                        <moz-toggle
-                          id="web-notifications-toggle"
-                          pressed={webNotificationsEnabled || null}
-                          ontoggle={this.onPreferenceSelect}
-                          data-preference="showWebNotifications"
-                          data-l10n-id="newtab-custom-web-notifications-toggle"
-                        ></moz-toggle>
+                        <moz-select
+                          id="row-selector"
+                          className="selector"
+                          name="row-count"
+                          data-preference="topSitesRows"
+                          value={topSitesRowsCount}
+                          aria-labelledby="custom-shortcuts-title"
+                          onChange={this.onPreferenceSelect}
+                          // @nova-cleanup(remove-conditional): Remove novaEnabled conditional and spread operator, keep the attributes
+                          {...(novaEnabled && {
+                            "data-l10n-id": "newtab-custom-row-description",
+                            inputLayout: "inline-end",
+                          })}
+                        >
+                          {[1, 2, 3, 4].map(num =>
+                            // @nova-cleanup(remove-conditional): Remove the conditional and "else" block after Nova lands
+                            novaEnabled ? (
+                              <moz-option
+                                key={num}
+                                value={String(num)}
+                                label={String(num)}
+                              />
+                            ) : (
+                              <moz-option
+                                key={num}
+                                value={String(num)}
+                                data-l10n-id="newtab-custom-row-selector2"
+                                data-l10n-args={`{"num": ${num}}`}
+                              />
+                            )
+                          )}
+                        </moz-select>
                       </div>
-                    )}
+                      {mayHaveWebNotifications && (
+                        <div className="more-information">
+                          <moz-toggle
+                            id="web-notifications-toggle"
+                            pressed={webNotificationsEnabled || null}
+                            ontoggle={this.onPreferenceSelect}
+                            data-preference="showWebNotifications"
+                            data-l10n-id="newtab-custom-web-notifications-toggle"
+                          ></moz-toggle>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </moz-toggle>
-            </div>
+                </moz-toggle>
+              </div>
+            )}
 
             {
               // @nova-cleanup(remove-conditional): Remove novaEnabled check, keep divider
-              novaEnabled && mayHaveWidgets && (
+              novaEnabled && show.widgets && (
                 <span className="divider" role="separator"></span>
               )
             }
             {
               // @nova-cleanup(remove-conditional): Remove novaEnabled check, keep toggle and WidgetsManagementPanel
-              novaEnabled && mayHaveWidgets && (
+              novaEnabled && show.widgets && (
                 <div id="widgets-section" className="section">
                   <moz-toggle
                     id="widgets-system-toggle"
@@ -586,12 +639,12 @@ export class ContentSection extends React.PureComponent {
             {
               // @nova-cleanup(remove-conditional): Remove novaEnabled check, keep divider
               // The pocketRegion check makes sure there is only one divider present if it's false
-              novaEnabled && pocketRegion && (
+              novaEnabled && show.pocket && (
                 <span className="divider" role="separator"></span>
               )
             }
 
-            {pocketRegion && (
+            {show.pocket && (
               <div id="pocket-section" className="section">
                 <moz-toggle
                   id="pocket-toggle"
