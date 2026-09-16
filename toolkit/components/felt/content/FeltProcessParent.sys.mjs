@@ -180,7 +180,7 @@ export class FeltProcessParent extends JSProcessActorParent {
           case "felt-firefox-exiting": {
             gFeltProcessParentInstance.exitReported = true;
             // Whether this exit locks the session rides with the exit event
-            // itself (see nsIFelt.setCloseLockIntent); the exit handler only
+            // itself (see nsIFelt.setShutdownLockIntent); the exit handler only
             // acts on it for a clean, non-logout, non-restart exit.
             gFeltProcessParentInstance.lockOnExit = aData === "true";
             break;

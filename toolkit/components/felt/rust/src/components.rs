@@ -373,9 +373,9 @@ impl FeltXPCOM {
         }
     }
 
-    fn SetCloseLockIntent(&self, lock: bool) -> nserror::nsresult {
-        trace!("FeltXPCOM::SetCloseLockIntent({})", lock);
-        crate::CLOSE_LOCK_INTENT.store(lock, Ordering::Relaxed);
+    fn SetShutdownLockIntent(&self, lock: bool) -> nserror::nsresult {
+        trace!("FeltXPCOM::SetShutdownLockIntent({})", lock);
+        crate::SHUTDOWN_LOCK_INTENT.store(lock, Ordering::Relaxed);
         NS_OK
     }
 

@@ -3852,19 +3852,19 @@ export var Policies = {
 
   SignOut: {
     onBeforeAddons(manager, param) {
-      if (param.OnClose) {
+      if (param.Shutdown) {
         lazy.PoliciesUtils.setAndLockPref(
-          "enterprise.locking.on_close",
-          param.OnClose.Action === "lock"
+          "enterprise.locking.shutdown",
+          param.Shutdown.Action === "lock"
         );
       }
     },
     onRemove(manager, oldParams) {
-      if (oldParams.OnClose) {
-        lazy.PoliciesUtils.unsetAndUnlockPref("enterprise.locking.on_close");
+      if (oldParams.Shutdown) {
+        lazy.PoliciesUtils.unsetAndUnlockPref("enterprise.locking.shutdown");
         // unsetAndUnlockPref restores the build default but never re-locks;
         // re-lock to match the locked default the enterprise build ships.
-        Services.prefs.lockPref("enterprise.locking.on_close");
+        Services.prefs.lockPref("enterprise.locking.shutdown");
       }
     },
   },

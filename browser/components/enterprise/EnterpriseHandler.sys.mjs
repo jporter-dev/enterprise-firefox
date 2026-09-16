@@ -24,7 +24,7 @@ ChromeUtils.defineLazyGetter(lazy, "log", () => {
 
 const PROMPT_ON_SIGNOUT_PREF = "enterprise.prompt_on_signout";
 const WARN_ON_CLOSE_PREF = "browser.tabs.warnOnClose";
-const LOCK_ON_CLOSE_PREF = "enterprise.locking.on_close";
+const LOCK_ON_SHUTDOWN_PREF = "enterprise.locking.shutdown";
 
 export const EnterpriseHandler = {
   /**
@@ -102,11 +102,11 @@ export const EnterpriseHandler = {
   _initLockingPrefObservers() {
     if (Services.felt?.isFeltBrowser() && !this._lockObserversInitialized) {
       this._lockObserversInitialized = true;
-      this._syncCloseLockIntent();
-      this._lockOnClosePrefObserver = () => this._syncCloseLockIntent();
+      this._syncShutdownLockIntent();
+      this._shutdownLockPrefObserver = () => this._syncShutdownLockIntent();
       Services.prefs.addObserver(
-        LOCK_ON_CLOSE_PREF,
-        this._lockOnClosePrefObserver
+        LOCK_ON_SHUTDOWN_PREF,
+        this._shutdownLockPrefObserver
       );
     }
   },
@@ -290,7 +290,7 @@ export const EnterpriseHandler = {
    *   sign-out entry point passes false so the dialog always reflects a sign-out.
    * @returns {Promise<boolean>} true if the action should proceed, false if cancelled.
    */
-  async showSignoutPrompt(window, willLock = this.willLockOnClose) {
+  async showSignoutPrompt(window, willLock = this.willLockOnShutdown) {
     const warnOnSignout = Services.prefs.getBoolPref(
       PROMPT_ON_SIGNOUT_PREF,
       true
@@ -363,26 +363,26 @@ export const EnterpriseHandler = {
   },
 
   /**
-   * Whether closing the browser will lock the session (persist it behind OS
-   * auth to resume later) rather than sign out, per the locking pref.
+   * Whether shutting the browser down will lock the session (persist it behind
+   * OS auth to resume later) rather than sign out, per the locking pref.
    *
    * @returns {boolean}
    */
-  get willLockOnClose() {
-    return Services.prefs.getBoolPref(LOCK_ON_CLOSE_PREF, false);
+  get willLockOnShutdown() {
+    return Services.prefs.getBoolPref(LOCK_ON_SHUTDOWN_PREF, false);
   },
 
   /**
-   * Push the current close-locking preference to the browser's FELT IPC
+   * Push the current shutdown-locking preference to the browser's FELT IPC
    * client, which attaches it to the exit event when a shutdown is observed.
-   * The value is cached there rather than read at close time so the intent
+   * The value is cached there rather than read at shutdown time so the intent
    * always travels with the exit itself (a vetoed quit sends nothing).
    */
-  _syncCloseLockIntent() {
+  _syncShutdownLockIntent() {
     try {
-      Services.felt.setCloseLockIntent(this.willLockOnClose);
+      Services.felt.setShutdownLockIntent(this.willLockOnShutdown);
     } catch (e) {
-      lazy.log.error(`Unable to sync close lock intent: ${e}`);
+      lazy.log.error(`Unable to sync shutdown lock intent: ${e}`);
     }
   },
 
@@ -406,10 +406,10 @@ export const EnterpriseHandler = {
     if (this._lockObserversInitialized) {
       this._lockObserversInitialized = false;
       Services.prefs.removeObserver(
-        LOCK_ON_CLOSE_PREF,
-        this._lockOnClosePrefObserver
+        LOCK_ON_SHUTDOWN_PREF,
+        this._shutdownLockPrefObserver
       );
-      this._lockOnClosePrefObserver = null;
+      this._shutdownLockPrefObserver = null;
     }
   },
 };

@@ -11,11 +11,11 @@ sys.path.append(os.path.dirname(__file__))
 from base_test import Environment
 from felt_tests import FeltTests
 
-PREF_LOCK_ON_CLOSE = "enterprise.locking.on_close"
+PREF_LOCKING_SHUTDOWN = "enterprise.locking.shutdown"
 PREF_PROMPT_ON_SIGNOUT = "enterprise.prompt_on_signout"
 
 
-class BrowserLockOnClose(FeltTests):
+class BrowserShutdownLock(FeltTests):
     """Verify the lock-vs-signout decision when closing a FELT browser.
 
     The distinguishing signal is whether a server signout is posted (a lock
@@ -169,15 +169,15 @@ class BrowserLockOnClose(FeltTests):
 
         Returns the child browser pid for _settle_after_close."""
         browser_pid = self._start_signed_in()
-        # enterprise.locking.on_close ships locked, and set_prefs can't
+        # enterprise.locking.shutdown ships locked, and set_prefs can't
         # modify a locked pref; unlock it so the set_prefs below takes effect.
         with self._child_driver.using_context("chrome"):
             self._child_driver.execute_script(
                 "Services.prefs.unlockPref(arguments[0]);",
-                script_args=[PREF_LOCK_ON_CLOSE],
+                script_args=[PREF_LOCKING_SHUTDOWN],
             )
         self._child_driver.set_prefs({
-            PREF_LOCK_ON_CLOSE: locking_enabled,
+            PREF_LOCKING_SHUTDOWN: locking_enabled,
             PREF_PROMPT_ON_SIGNOUT: prompt_enabled,
         })
         assert self.signout_count.value == 0, "No signout should have been posted yet"
@@ -202,7 +202,7 @@ class BrowserLockOnClose(FeltTests):
         )
         self.assert_user_signed_out(env=Environment.FELT)
 
-    def test_lock_on_close_persists_session_without_signout(self):
+    def test_shutdown_lock_persists_session_without_signout(self):
         """Locking enabled, prompt disabled: closing locks (no signout, token kept)."""
         browser_pid = self._begin_close_test(locking_enabled=True, prompt_enabled=False)
 
@@ -211,7 +211,7 @@ class BrowserLockOnClose(FeltTests):
 
         self._assert_locked()
 
-    def test_signout_on_close_when_locking_disabled(self):
+    def test_shutdown_signout_when_locking_disabled(self):
         """Locking disabled, prompt disabled: closing signs out (no token kept)."""
         browser_pid = self._begin_close_test(
             locking_enabled=False, prompt_enabled=False

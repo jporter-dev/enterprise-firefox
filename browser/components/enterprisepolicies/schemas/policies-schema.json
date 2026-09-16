@@ -4251,21 +4251,32 @@
         }
       },
       "x-restart-required": false,
-      "description": "Control whether the managed session is signed out or locked when the browser closes.",
+      "description": "Configure sign-out behavior for enterprise users.",
       "examples": [
         {
-          "OnClose": {
+          "Shutdown": {
             "Action": "lock"
           }
         }
       ],
       "properties": {
-        "OnClose": {
+        "Shutdown": {
           "type": "object",
           "properties": {
             "Action": {
               "type": "string",
-              "enum": ["signout", "lock"]
+              "oneOf": [
+                {
+                  "const": "signout",
+                  "title": "Sign out",
+                  "description": "Sign the session out when the browser shuts down, so the next launch requires a full sign-in. This is what happens when the policy is not set."
+                },
+                {
+                  "const": "lock",
+                  "title": "Lock",
+                  "description": "Lock the session when the browser shuts down, so the next launch only requires the user to unlock."
+                }
+              ]
             }
           },
           "required": ["Action"]

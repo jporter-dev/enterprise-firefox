@@ -255,7 +255,7 @@ impl FeltClientThread {
                                 "shutdown" => {
                                     trace!("FeltClientThread::start_thread::observe() quit-application: shutdown");
                                     let with_lock =
-                                        crate::CLOSE_LOCK_INTENT.load(Ordering::Relaxed);
+                                        crate::SHUTDOWN_LOCK_INTENT.load(Ordering::Relaxed);
                                     if let Err(err) = tx.send(FeltMessage::Exiting(with_lock)) {
                                         trace!("FeltClientThread::start_thread::observe() failed to send shutdown: {:?}", err);
                                     }

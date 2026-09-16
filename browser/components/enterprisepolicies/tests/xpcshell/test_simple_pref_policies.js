@@ -1516,26 +1516,26 @@ const POLICIES_TESTS = [
   {
     policies: {
       SignOut: {
-        OnClose: {
+        Shutdown: {
           Action: "lock",
         },
       },
     },
-    // Locking on close persists the session behind OS auth instead of signing out.
+    // Locking on shutdown persists the session behind OS auth instead of signing out.
     lockedPrefs: {
-      "enterprise.locking.on_close": true,
+      "enterprise.locking.shutdown": true,
     },
   },
   {
     policies: {
       SignOut: {
-        OnClose: {
+        Shutdown: {
           Action: "signout",
         },
       },
     },
     lockedPrefs: {
-      "enterprise.locking.on_close": false,
+      "enterprise.locking.shutdown": false,
     },
   },
 ];

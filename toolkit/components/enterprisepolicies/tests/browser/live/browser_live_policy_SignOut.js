@@ -3,7 +3,7 @@
 
 "use strict";
 
-const PREF_NAME = "enterprise.locking.on_close";
+const PREF_NAME = "enterprise.locking.shutdown";
 
 function checkState(locked, value) {
   Assert.equal(
@@ -17,20 +17,20 @@ function checkState(locked, value) {
     `${PREF_NAME} is ${value}`
   );
   Assert.strictEqual(
-    EnterpriseHandler.willLockOnClose,
+    EnterpriseHandler.willLockOnShutdown,
     value,
-    `willLockOnClose reflects the pref (${value})`
+    `willLockOnShutdown reflects the pref (${value})`
   );
 }
 
 // Changing the SignOut action through a live policy update must take effect on
-// the next browser close without a restart, since willLockOnClose reads the
-// pref freshly each time.
+// the next browser shutdown without a restart, since willLockOnShutdown reads
+// the pref freshly each time.
 add_task(async function test_signout_live_update() {
   await EnterprisePolicyTesting.setupEngineWithRemotePolicies(
     {
       policies: {
-        SignOut: { OnClose: { Action: "lock" } },
+        SignOut: { Shutdown: { Action: "lock" } },
       },
     },
     null
@@ -40,7 +40,7 @@ add_task(async function test_signout_live_update() {
 
   info("Live-updating SignOut to signout");
   await waitForLivePolicyUpdate({
-    SignOut: { OnClose: { Action: "signout" } },
+    SignOut: { Shutdown: { Action: "signout" } },
   });
 
   checkState(true, false);
@@ -60,7 +60,7 @@ add_task(async function test_signout_live_removal() {
 
   info("Applying SignOut with a signout action");
   await waitForLivePolicyUpdate({
-    SignOut: { OnClose: { Action: "signout" } },
+    SignOut: { Shutdown: { Action: "signout" } },
   });
 
   checkState(true, false);

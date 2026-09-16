@@ -40,7 +40,7 @@ skip-if = [
   "os == 'win' && arch == 'aarch64'",
 ]
 
-["test_felt_browser_lock_on_close.py"]
+["test_felt_browser_shutdown_lock.py"]
 
 ["test_felt_browser_new_window_from_cli.py"]
 
