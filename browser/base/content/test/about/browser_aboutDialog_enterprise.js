@@ -71,10 +71,17 @@ add_task(async function experimental_warning_names_the_channel() {
   if (experimental.hidden) {
     info("Not a nightly build, no experimental warning to check");
   } else {
+    let warningDesc = doc.getElementById("warningDesc");
     is(
-      doc.getElementById("warningDesc").getAttribute("data-l10n-id"),
-      "aboutdialog-nightly-channel-warning",
+      warningDesc.getAttribute("data-l10n-id"),
+      "warningdesc-version-enterprise-nightly",
       "Experimental warning names the release channel instead of the brand"
+    );
+    // The message interpolates -brand-nightly-channel, so an empty node here
+    // means the term failed to resolve rather than the string being missing.
+    await TestUtils.waitForCondition(
+      () => warningDesc.textContent.trim(),
+      "Waiting for the experimental warning to be localized"
     );
   }
 
