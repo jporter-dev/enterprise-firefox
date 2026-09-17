@@ -3858,6 +3858,12 @@ export var Policies = {
           param.Shutdown.Action === "lock"
         );
       }
+      if (param.Crash) {
+        lazy.PoliciesUtils.setAndLockPref(
+          "enterprise.locking.crash",
+          param.Crash.Action === "lock"
+        );
+      }
     },
     onRemove(manager, oldParams) {
       if (oldParams.Shutdown) {
@@ -3865,6 +3871,10 @@ export var Policies = {
         // unsetAndUnlockPref restores the build default but never re-locks;
         // re-lock to match the locked default the enterprise build ships.
         Services.prefs.lockPref("enterprise.locking.shutdown");
+      }
+      if (oldParams.Crash) {
+        lazy.PoliciesUtils.unsetAndUnlockPref("enterprise.locking.crash");
+        Services.prefs.lockPref("enterprise.locking.crash");
       }
     },
   },
