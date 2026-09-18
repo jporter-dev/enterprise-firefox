@@ -59,19 +59,16 @@ export const RelaunchEnforcer = {
   _refreshChain: Promise.resolve(),
   // Delegate the warning UI to the application, if it registered one.
   _warningUIDelegate: null,
-  // Invalidates delegated updates and restart actions when the warning hides.
-  _warningUIGeneration: 0,
-  _hasProcessedConsolePoll: false,
 
   /**
-   * Registers application-specific relaunch warning UI before console polling
-   * starts. Only one delegate can be registered for the lifetime of the
-   * application. Without a delegate the restart still lands on schedule; only
-   * the warning is missing.
+   * Registers application-specific relaunch warning UI. Only one delegate can
+   * be registered for the lifetime of the application.
    *
    * `showOrUpdate` receives the warning phase, deadline, remaining minutes, and
-   * a callback for the warning's restart action. It returns whether the warning
-   * is visible.
+   * a callback for the warning's restart action. It reports whether a warning
+   * is visible after the update. `hide` must remove any warning even when
+   * `isVisible` returns false, and must tolerate repeated calls for the same
+   * withdrawal.
    *
    * @param {object} aDelegate - The warning UI delegate.
    * @param {function(object): (boolean|Promise<boolean>)} aDelegate.showOrUpdate
@@ -93,12 +90,10 @@ export const RelaunchEnforcer = {
     if (this._warningUIDelegate) {
       throw new Error("A warning UI delegate is already registered.");
     }
-    if (this._hasProcessedConsolePoll) {
-      throw new Error(
-        "The warning UI delegate must be registered before console polling starts."
-      );
-    }
     this._warningUIDelegate = aDelegate;
+    if (this._schedule && !this._restarting) {
+      this._refreshNotification();
+    }
   },
 
   get _sessionStart() {
@@ -191,7 +186,6 @@ export const RelaunchEnforcer = {
    * @param {object|null} relaunch - The response's `relaunch` key, if any.
    */
   onConsolePoll(relaunch) {
-    this._hasProcessedConsolePoll = true;
     if (this._restarting) {
       return;
     }
@@ -391,7 +385,9 @@ export const RelaunchEnforcer = {
     }
     const delegate = this._warningUIDelegate;
     if (!delegate) {
-      return;
+      throw new Error(
+        "No relaunch warning UI delegate is registered; the user cannot be notified."
+      );
     }
     const { restartAt } = this._schedule;
     const remaining = restartAt - Date.now();
@@ -412,14 +408,12 @@ export const RelaunchEnforcer = {
       return;
     }
 
-    const generation = this._warningUIGeneration;
     const shown = await delegate.showOrUpdate({
       phase,
       restartAt,
       minutes,
       restartNow: () => {
         if (
-          generation === this._warningUIGeneration &&
           delegate === this._warningUIDelegate &&
           this._schedule &&
           !this._restarting
@@ -429,13 +423,9 @@ export const RelaunchEnforcer = {
       },
     });
     if (!shown) {
-      if (generation === this._warningUIGeneration) {
-        ++this._warningUIGeneration;
-      }
       return;
     }
     if (
-      generation !== this._warningUIGeneration ||
       delegate !== this._warningUIDelegate ||
       !this._schedule ||
       this._restarting
@@ -453,7 +443,6 @@ export const RelaunchEnforcer = {
   },
 
   _hideNotification() {
-    ++this._warningUIGeneration;
     this._warningUIDelegate?.hide();
     this._shownPhase = null;
     this._shownMinutes = null;
@@ -494,7 +483,6 @@ export const RelaunchEnforcer = {
     this._stopAwaitingSessionRestore();
     this._hideNotification();
     this._warningUIDelegate = null;
-    this._hasProcessedConsolePoll = false;
     this._restarting = false;
   },
 };

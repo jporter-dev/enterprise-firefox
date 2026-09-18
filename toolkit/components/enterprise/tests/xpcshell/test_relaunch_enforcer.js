@@ -303,9 +303,21 @@ add_task(function test_update_request_without_felt_is_a_noop() {
   RelaunchEnforcer._requestUpdateCheck();
 });
 
-add_task(function test_warning_ui_delegate_is_startup_singleton() {
+add_task(async function test_missing_warning_ui_delegate_is_an_error() {
+  RelaunchEnforcer._schedule = { restartAt: Date.now() + 45 * MINUTE };
+  await Assert.rejects(
+    RelaunchEnforcer._updateDelegatedWarning(),
+    /No relaunch warning UI delegate is registered/,
+    "A pending deadline without warning UI is a critical error"
+  );
+  RelaunchEnforcer.testingOnly_reset();
+});
+
+add_task(async function test_warning_ui_delegate_is_singleton() {
+  let updateCount = 0;
   const delegate = {
     showOrUpdate() {
+      ++updateCount;
       return true;
     },
     hide() {},
@@ -323,12 +335,81 @@ add_task(function test_warning_ui_delegate_is_startup_singleton() {
   );
 
   RelaunchEnforcer.testingOnly_reset();
-  RelaunchEnforcer.onConsolePoll(null);
-  Assert.throws(
-    () => RelaunchEnforcer.registerWarningUIDelegate(delegate),
-    /before console polling starts/,
-    "The warning UI delegate must be selected before the first poll"
+  RelaunchEnforcer._schedule = { restartAt: Date.now() + 45 * MINUTE };
+  RelaunchEnforcer.registerWarningUIDelegate(delegate);
+  await RelaunchEnforcer._refreshChain;
+  Assert.equal(
+    updateCount,
+    1,
+    "Late registration reconciles a deadline that is already pending"
   );
+  RelaunchEnforcer.testingOnly_reset();
+});
+
+add_task(async function test_cancel_balances_an_in_flight_warning_show() {
+  let up = false;
+  let hideCount = 0;
+  const showStarted = Promise.withResolvers();
+  const showResult = Promise.withResolvers();
+  RelaunchEnforcer.registerWarningUIDelegate({
+    async showOrUpdate() {
+      showStarted.resolve();
+      await showResult.promise;
+      up = true;
+      return true;
+    },
+    hide() {
+      ++hideCount;
+      up = false;
+    },
+    isVisible() {
+      return false;
+    },
+  });
+  registerCleanupFunction(() => RelaunchEnforcer.testingOnly_reset());
+
+  RelaunchEnforcer._schedule = { restartAt: Date.now() + 45 * MINUTE };
+  const refresh = RelaunchEnforcer._refreshNotification();
+  await showStarted.promise;
+  RelaunchEnforcer.cancel();
+  Assert.equal(
+    hideCount,
+    1,
+    "Cancellation withdraws the warning whether or not the delegate counts it as shown"
+  );
+
+  showResult.resolve();
+  await refresh;
+  Assert.equal(hideCount, 2, "The stale show is hidden once it completes");
+  Assert.ok(!up, "The stale warning is not left visible");
+  RelaunchEnforcer.testingOnly_reset();
+});
+
+// A warning can outlive the bookkeeping that answers isVisible(), and hide() is
+// the only thing that can still take it down.
+add_task(async function test_withdrawal_hides_a_warning_reported_not_visible() {
+  let up = false;
+  const delegate = {
+    showOrUpdate() {
+      up = true;
+      return true;
+    },
+    hide() {
+      up = false;
+    },
+    isVisible() {
+      return false;
+    },
+  };
+  RelaunchEnforcer.registerWarningUIDelegate(delegate);
+  registerCleanupFunction(() => RelaunchEnforcer.testingOnly_reset());
+
+  RelaunchEnforcer._schedule = { restartAt: Date.now() + 45 * MINUTE };
+  await RelaunchEnforcer._refreshNotification();
+  Assert.ok(up, "The warning is up");
+
+  RelaunchEnforcer.cancel();
+  Assert.ok(!up, "Withdrawing the deadline took the warning down");
   RelaunchEnforcer.testingOnly_reset();
 });
 

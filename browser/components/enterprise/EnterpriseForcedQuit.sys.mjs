@@ -230,8 +230,7 @@ export const EnterpriseForcedQuit = {
   warningUI,
 
   /**
-   * Registers the application delegates. Must run before the first console
-   * poll.
+   * Registers the application delegates.
    */
   init() {
     lazy.RelaunchEnforcer.registerWarningUIDelegate(this.warningUI);
@@ -251,11 +250,7 @@ export const EnterpriseForcedQuit = {
   },
 };
 
-/**
- * The app-startup entry point (see components.conf): both registrations must
- * land before "policies-startup" delivers the first console poll, which runs
- * right after the app-startup category.
- */
+/** The app-startup entry point (see components.conf). */
 export function EnterpriseForcedQuitStartup() {}
 
 EnterpriseForcedQuitStartup.prototype = {
