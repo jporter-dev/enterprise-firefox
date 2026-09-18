@@ -8,15 +8,28 @@ import sys
 
 sys.path.append(os.path.dirname(__file__))
 
-from felt_browser_starts import FeltStartsBrowser
+from felt_tests import FeltTests
+
+# ConsoleClient keeps a single hook slot, so the one the application registered
+# at startup has to go before the test can install its own.
+TAKE_OVER_HOOK_SLOT = """
+const { ConsoleClient } = ChromeUtils.importESModule(
+  "resource://gre/modules/enterprise/ConsoleClient.sys.mjs"
+);
+if (ConsoleClient._beforeForcedQuitHook) {
+  ConsoleClient.unregisterBeforeForcedQuitHook(
+    ConsoleClient._beforeForcedQuitHook
+  );
+}
+"""
 
 
-class BrowserForcedSignout(FeltStartsBrowser):
+class ForcedSignout(FeltTests):
     def test_forced_signout_waits_for_hook(self):
         self.run_felt_base()
-        self.run_felt_browser_started()
+        self.connect_child_browser()
 
-        marker_path = os.path.join(self._child_profile_path, "forced-signout-hook")
+        quit_flags_path = os.path.join(self._child_profile_path, "forced-signout-hook")
         browser_pid = self._child_driver.session_capabilities["moz:processID"]
         self._manually_closed_child = True
         self._child_driver.set_context("chrome")
@@ -26,30 +39,28 @@ class BrowserForcedSignout(FeltStartsBrowser):
 
         try:
             self._child_driver.execute_script(
-                """
-                const { ConsoleClient } = ChromeUtils.importESModule(
-                  "resource://gre/modules/enterprise/ConsoleClient.sys.mjs"
-                );
+                TAKE_OVER_HOOK_SLOT
+                + """
                 ConsoleClient.registerBeforeForcedQuitHook(async flags => {
                   await IOUtils.writeUTF8(arguments[0], String(flags));
                 });
                 Services.obs.notifyObservers(null, "felt-firefox-shutdown");
                 """,
-                script_args=(marker_path,),
+                script_args=(quit_flags_path,),
             )
         except Exception:
             pass
 
         self.wait_process_exit(browser_pid)
-        with open(marker_path) as marker:
-            actual_flags = int(marker.read())
+        with open(quit_flags_path) as quit_flags:
+            actual_flags = int(quit_flags.read())
         assert actual_flags == expected_flags, (
             f"Expected forced-quit flags {expected_flags}, got {actual_flags}"
         )
 
     def test_forced_signout_hook_failure_still_quits(self):
         self.run_felt_base()
-        self.run_felt_browser_started()
+        self.connect_child_browser()
 
         browser_pid = self._child_driver.session_capabilities["moz:processID"]
         self._manually_closed_child = True
@@ -57,10 +68,8 @@ class BrowserForcedSignout(FeltStartsBrowser):
 
         try:
             self._child_driver.execute_script(
-                """
-                const { ConsoleClient } = ChromeUtils.importESModule(
-                  "resource://gre/modules/enterprise/ConsoleClient.sys.mjs"
-                );
+                TAKE_OVER_HOOK_SLOT
+                + """
                 ConsoleClient.registerBeforeForcedQuitHook(() => {
                   throw new Error("Expected forced-signout hook failure");
                 });

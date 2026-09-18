@@ -697,23 +697,38 @@ export const ConsoleClient = {
 
   /**
    * Registers application-specific pre-shutdown logic to run before a forced
-   * quit, such as flushing state or suppressing close vetoes. Registration is
-   * last-write-wins: a later hook replaces the current one.
+   * quit, such as flushing state or suppressing close vetoes. Only one hook
+   * can be registered at a time; unregisterBeforeForcedQuitHook() must run
+   * before another registration.
    *
    * @param {function(number): (void|Promise<void>)} aHook - Receives
    *   nsIAppStartup quit flags.
-   * @returns {function(): void} Unregisters this hook.
+   * @returns {void}
    */
   registerBeforeForcedQuitHook(aHook) {
     if (typeof aHook !== "function") {
       throw new TypeError("The before-forced-quit hook must be a function.");
     }
+    if (this._beforeForcedQuitHook) {
+      throw new Error("A before-forced-quit hook is already registered.");
+    }
     this._beforeForcedQuitHook = aHook;
-    return () => {
-      if (this._beforeForcedQuitHook === aHook) {
-        this._beforeForcedQuitHook = null;
-      }
-    };
+  },
+
+  /**
+   * Withdraws the hook registerBeforeForcedQuitHook() took, which the caller
+   * names so that an unbalanced call cannot drop someone else's hook.
+   *
+   * @param {function(number): (void|Promise<void>)} aHook - The hook to drop.
+   * @returns {void}
+   */
+  unregisterBeforeForcedQuitHook(aHook) {
+    if (this._beforeForcedQuitHook !== aHook) {
+      throw new Error(
+        "The before-forced-quit hook to unregister is not the registered one."
+      );
+    }
+    this._beforeForcedQuitHook = null;
   },
 
   /**
