@@ -38,7 +38,7 @@ function notificationFluentId(win, value) {
 // Every task starts from here, so a failing task cannot fail the ones after it.
 async function reset(win) {
   RelaunchEnforcer.testingOnly_reset();
-  // The reset dropped the delegate registered at app-startup.
+  // The reset dropped the delegate registered at profile-after-change.
   RelaunchEnforcer.registerWarningUIDelegate(EnterpriseForcedQuit.warningUI);
   win.gNotificationBox.removeAllNotifications(true);
   await TestUtils.waitForCondition(
@@ -56,11 +56,11 @@ add_setup(async function () {
   Assert.strictEqual(
     RelaunchEnforcer._warningUIDelegate,
     EnterpriseForcedQuit.warningUI,
-    "The warning UI delegate was registered at app-startup"
+    "The warning UI delegate was registered at profile-after-change"
   );
   Assert.ok(
     ConsoleClient._beforeForcedQuitHook,
-    "The before-forced-quit hook was registered at app-startup"
+    "The before-forced-quit hook was registered at profile-after-change"
   );
   registerCleanupFunction(() =>
     reset(Services.wm.getMostRecentBrowserWindow())

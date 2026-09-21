@@ -250,7 +250,7 @@ export const EnterpriseForcedQuit = {
   },
 };
 
-/** The app-startup entry point (see components.conf). */
+/** The profile-after-change entry point (see components.conf). */
 export function EnterpriseForcedQuitStartup() {}
 
 EnterpriseForcedQuitStartup.prototype = {
