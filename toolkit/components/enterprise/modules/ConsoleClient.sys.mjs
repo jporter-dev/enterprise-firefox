@@ -9,6 +9,11 @@ const lazy = {};
 // Nothing instantiates the category, so the module loads only on a forced quit.
 const FORCED_QUIT_HOOK_CATEGORY = "enterprise-forced-quit-hook";
 
+// Bound the forced quit hook so a stalled one can't wedge the quit.
+const FORCED_QUIT_HOOK_TIMEOUT_PREF =
+  "enterprise.felt.forced_quit_hook_timeout_ms";
+const FORCED_QUIT_HOOK_TIMEOUT_MS = 60000;
+
 const FELT_REFRESH_TIMEOUT = 60000;
 
 // Bound a single console request so a stalled server can't wedge the poller.
@@ -707,6 +712,10 @@ export const ConsoleClient = {
    * can be registered at a time; unregisterBeforeForcedQuitHook() must run
    * before another registration.
    *
+   * The hook gates a quit the console mandated, so it must settle. One that
+   * has not settled within FORCED_QUIT_HOOK_TIMEOUT_PREF is abandoned and the
+   * quit proceeds without it.
+   *
    * @param {function(number): (void|Promise<void>)} aHook - Receives
    *   nsIAppStartup quit flags.
    * @returns {void}
@@ -783,10 +792,27 @@ export const ConsoleClient = {
     }
     const hook = this._appForcedQuitHook();
     if (hook) {
+      const timeoutMs = Services.prefs.getIntPref(
+        FORCED_QUIT_HOOK_TIMEOUT_PREF,
+        FORCED_QUIT_HOOK_TIMEOUT_MS
+      );
+      let timeoutId;
       try {
-        await hook(aFlags);
+        await Promise.race([
+          hook(aFlags),
+          new Promise(resolve => {
+            timeoutId = lazy.setTimeout(() => {
+              lazy.log.error(
+                `Pre-forced-quit hook did not settle within ${timeoutMs}ms; quitting anyway.`
+              );
+              resolve();
+            }, timeoutMs);
+          }),
+        ]);
       } catch (error) {
         lazy.log.error("Pre-forced-quit hook failed; quitting anyway.", error);
+      } finally {
+        lazy.clearTimeout(timeoutId);
       }
     }
     Services.startup.quit(aFlags);

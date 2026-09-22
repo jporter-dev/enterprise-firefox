@@ -80,3 +80,30 @@ class ForcedSignout(FeltTests):
             pass
 
         self.wait_process_exit(browser_pid)
+
+    def test_forced_signout_hung_hook_still_quits(self):
+        self.run_felt_base()
+        self.connect_child_browser()
+
+        browser_pid = self._child_driver.session_capabilities["moz:processID"]
+        self._manually_closed_child = True
+        self._child_driver.set_context("chrome")
+
+        try:
+            self._child_driver.execute_script(
+                TAKE_OVER_HOOK_SLOT
+                + """
+                Services.prefs.setIntPref(
+                  "enterprise.felt.forced_quit_hook_timeout_ms",
+                  2000
+                );
+                ConsoleClient.registerBeforeForcedQuitHook(
+                  () => new Promise(() => {})
+                );
+                Services.obs.notifyObservers(null, "felt-firefox-shutdown");
+                """
+            )
+        except Exception:
+            pass
+
+        self.wait_process_exit(browser_pid)
