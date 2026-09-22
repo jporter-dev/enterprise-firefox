@@ -126,6 +126,10 @@ export const ConsoleClient = {
   _beforeForcedQuitHook: null,
   _forcedQuitHookLoaded: false,
 
+  /** Coalesces quit requests while the hook runs. */
+  _quitPromise: null,
+  _pendingQuitFlags: 0,
+
   /**
    * This promise guards agains multiple refresh operations on the console/FELT side, similar
    * to what happens on the browser side (`_refreshPromise`).
@@ -792,6 +796,17 @@ export const ConsoleClient = {
         "quitIgnoringCanClose(): Called from Felt context, which is not allowed."
       );
     }
+    this._pendingQuitFlags |= aFlags;
+    this._quitPromise ??= this._performQuit();
+    return this._quitPromise;
+  },
+
+  /**
+   * Runs the before-forced-quit hook, then requests the quit.
+   *
+   * @returns {Promise<void>}
+   */
+  async _performQuit() {
     const hook = this._appForcedQuitHook();
     if (hook) {
       const timeoutMs = Services.prefs.getIntPref(
@@ -801,7 +816,7 @@ export const ConsoleClient = {
       let timeoutId;
       try {
         await Promise.race([
-          hook(aFlags),
+          hook(this._pendingQuitFlags),
           new Promise(resolve => {
             timeoutId = lazy.setTimeout(() => {
               lazy.log.error(
@@ -817,7 +832,7 @@ export const ConsoleClient = {
         lazy.clearTimeout(timeoutId);
       }
     }
-    Services.startup.quit(aFlags);
+    Services.startup.quit(this._pendingQuitFlags);
   },
 
   /**
