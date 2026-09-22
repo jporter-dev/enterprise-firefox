@@ -778,7 +778,9 @@ export const ConsoleClient = {
   /**
    * Quits the application. The registered before-forced-quit hook, if any,
    * runs first; applications use it to keep close callbacks from preventing
-   * the quit.
+   * the quit. Ignoring those callbacks is the hook's job, so with no hook
+   * registered, or one that fails or is abandoned on timeout, the quit is
+   * still requested regardless of the hook's outcome.
    *
    * @param {number} [aFlags] - nsIAppStartup quit flags, to which eRestart can
    *   be added to come back up. eForceQuit on its own by default.
