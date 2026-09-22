@@ -396,7 +396,11 @@ export const RelaunchEnforcer = {
       );
       return;
     }
-    const { restartAt } = this._schedule;
+    // Every poll installs a fresh schedule, so this also catches a withdrawal
+    // followed by a deadline the delegate cannot tell apart from the one it is
+    // already showing.
+    const schedule = this._schedule;
+    const { restartAt } = schedule;
     const remaining = restartAt - Date.now();
     const isImminent = remaining <= IMMINENT_THRESHOLD_MS;
     const phase = isImminent ? RelaunchPhase.IMMINENT : RelaunchPhase.WARNING;
@@ -434,7 +438,7 @@ export const RelaunchEnforcer = {
     }
     if (
       delegate !== this._warningUIDelegate ||
-      !this._schedule ||
+      schedule !== this._schedule ||
       this._restarting
     ) {
       delegate.hide();

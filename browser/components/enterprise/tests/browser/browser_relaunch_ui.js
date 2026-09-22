@@ -301,6 +301,71 @@ add_task(async function test_returns_after_the_bar_is_removed() {
   );
 });
 
+add_task(async function test_a_withdrawal_mid_show_is_not_adopted() {
+  const win = Services.wm.getMostRecentBrowserWindow();
+  await reset(win);
+
+  // A grace period outliving the budget pins the deadline to the session
+  // start, so each poll below derives the same restartAt down to the minute.
+  const budget = { MinutesRemaining: 1, GracePeriodMinutes: 45 };
+
+  // Hold the show the first deadline queues, so the withdrawal and the
+  // deadline that follows it both land while InfoBar is still putting up a bar
+  // the refresh behind them cannot tell from the one it wants.
+  const showInfoBarMessage = InfoBar.showInfoBarMessage;
+  let release;
+  let reached;
+  const held = new Promise(resolve => (release = resolve));
+  const showing = new Promise(resolve => (reached = resolve));
+  InfoBar.showInfoBarMessage = (...args) => {
+    InfoBar.showInfoBarMessage = showInfoBarMessage;
+    reached();
+    return held.then(() => showInfoBarMessage.apply(InfoBar, args));
+  };
+
+  const restart = RelaunchEnforcer._restart;
+  let restarts = 0;
+  RelaunchEnforcer._restart = () => restarts++;
+
+  try {
+    RelaunchEnforcer.onConsolePoll(budget);
+    await showing;
+    RelaunchEnforcer.onConsolePoll(null);
+    RelaunchEnforcer.onConsolePoll(budget);
+    release();
+    await RelaunchEnforcer._refreshNotification();
+
+    Assert.deepEqual(
+      notificationValues(win),
+      [WARNING_ID],
+      "One warning bar is up for the deadline that stands"
+    );
+
+    const notification =
+      win.gNotificationBox.getNotificationWithValue(WARNING_ID);
+    Assert.equal(
+      Number(
+        notification
+          .querySelector("remote-text")
+          .getAttribute("fluent-variable-datetime")
+      ),
+      RelaunchEnforcer.testingOnly_getState().schedule.restartAt,
+      "The bar carries the deadline that stands"
+    );
+
+    notification.buttonContainer.querySelector("button").click();
+    Assert.equal(restarts, 1, "The restart button still restarts");
+  } finally {
+    InfoBar.showInfoBarMessage = showInfoBarMessage;
+    RelaunchEnforcer._restart = restart;
+    RelaunchEnforcer.onConsolePoll(null);
+    await TestUtils.waitForCondition(
+      () => !notificationValues(win).length,
+      "The relaunch bar goes away"
+    );
+  }
+});
+
 add_task(async function test_takes_the_slot_from_another_infobar() {
   const win = Services.wm.getMostRecentBrowserWindow();
   await reset(win);
