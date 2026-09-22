@@ -4,6 +4,11 @@
 
 const lazy = {};
 
+// The application provides its pre-forced-quit hook through this category. An
+// entry's value is the URL of a module exporting registerForcedQuitHook().
+// Nothing instantiates the category, so the module loads only on a forced quit.
+const FORCED_QUIT_HOOK_CATEGORY = "enterprise-forced-quit-hook";
+
 const FELT_REFRESH_TIMEOUT = 60000;
 
 // Bound a single console request so a stalled server can't wedge the poller.
@@ -114,6 +119,7 @@ export const ConsoleClient = {
    * Optional application-specific preparation to run before a forced quit.
    */
   _beforeForcedQuitHook: null,
+  _forcedQuitHookLoaded: false,
 
   /**
    * This promise guards agains multiple refresh operations on the console/FELT side, similar
@@ -732,6 +738,35 @@ export const ConsoleClient = {
   },
 
   /**
+   * The application's pre-forced-quit hook, loading it from
+   * FORCED_QUIT_HOOK_CATEGORY the first time one is asked for. A forced quit
+   * can be mandated before any startup phase the application registers from,
+   * so the hook is resolved here rather than expected to be in place already.
+   *
+   * @returns {?function(number): (void|Promise<void>)} The hook, or null if
+   *   the application has none.
+   */
+  _appForcedQuitHook() {
+    if (this._beforeForcedQuitHook || this._forcedQuitHookLoaded) {
+      return this._beforeForcedQuitHook;
+    }
+    this._forcedQuitHookLoaded = true;
+    for (const { value: url } of Services.catMan.enumerateCategory(
+      FORCED_QUIT_HOOK_CATEGORY
+    )) {
+      try {
+        ChromeUtils.importESModule(url).registerForcedQuitHook();
+      } catch (e) {
+        lazy.log.error(
+          `Failed to register the forced-quit hook from ${url}:`,
+          e
+        );
+      }
+    }
+    return this._beforeForcedQuitHook;
+  },
+
+  /**
    * Quits the application. The registered before-forced-quit hook, if any,
    * runs first; applications use it to keep close callbacks from preventing
    * the quit.
@@ -746,9 +781,10 @@ export const ConsoleClient = {
         "quitIgnoringCanClose(): Called from Felt context, which is not allowed."
       );
     }
-    if (this._beforeForcedQuitHook) {
+    const hook = this._appForcedQuitHook();
+    if (hook) {
       try {
-        await this._beforeForcedQuitHook(aFlags);
+        await hook(aFlags);
       } catch (error) {
         lazy.log.error("Pre-forced-quit hook failed; quitting anyway.", error);
       }

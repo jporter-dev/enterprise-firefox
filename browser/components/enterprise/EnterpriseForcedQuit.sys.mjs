@@ -230,16 +230,6 @@ export const EnterpriseForcedQuit = {
   warningUI,
 
   /**
-   * Registers the application delegates.
-   */
-  init() {
-    lazy.RelaunchEnforcer.registerWarningUIDelegate(this.warningUI);
-    lazy.ConsoleClient.registerBeforeForcedQuitHook(() =>
-      this.beforeForcedQuit()
-    );
-  },
-
-  /**
    * Keeps page and tab-close callbacks from vetoing a quit the console
    * mandated.
    */
@@ -250,13 +240,16 @@ export const EnterpriseForcedQuit = {
   },
 };
 
-/** The profile-after-change entry point (see components.conf). */
-export function EnterpriseForcedQuitStartup() {}
+/** The "enterprise-relaunch-warning-ui" entry point (see components.conf). */
+export function registerRelaunchWarningUI() {
+  lazy.RelaunchEnforcer.registerWarningUIDelegate(
+    EnterpriseForcedQuit.warningUI
+  );
+}
 
-EnterpriseForcedQuitStartup.prototype = {
-  QueryInterface: ChromeUtils.generateQI(["nsIObserver"]),
-
-  observe() {
-    EnterpriseForcedQuit.init();
-  },
-};
+/** The "enterprise-forced-quit-hook" entry point (see components.conf). */
+export function registerForcedQuitHook() {
+  lazy.ConsoleClient.registerBeforeForcedQuitHook(() =>
+    EnterpriseForcedQuit.beforeForcedQuit()
+  );
+}

@@ -56,6 +56,8 @@ run-if = [
 
 ["test_felt_browser_relaunch_deadline_countdown_focus.py"]
 
+["test_felt_browser_relaunch_deadline_first_poll.py"]
+
 ["test_felt_browser_relaunch_deadline_infobar_slot.py"]
 
 ["test_felt_browser_relaunch_deadline_missing_policies.py"]

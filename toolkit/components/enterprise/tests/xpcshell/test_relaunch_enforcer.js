@@ -303,12 +303,34 @@ add_task(function test_update_request_without_felt_is_a_noop() {
   RelaunchEnforcer._requestUpdateCheck();
 });
 
-add_task(async function test_missing_warning_ui_delegate_is_an_error() {
+// The delegate is resolved from its category on first use. testingOnly_reset()
+// suppresses that lookup, so this covers an application that registers none.
+add_task(async function test_missing_warning_ui_delegate_shows_nothing() {
+  RelaunchEnforcer.testingOnly_reset();
   RelaunchEnforcer._schedule = { restartAt: Date.now() + 45 * MINUTE };
-  await Assert.rejects(
-    RelaunchEnforcer._updateDelegatedWarning(),
-    /No relaunch warning UI delegate is registered/,
-    "A pending deadline without warning UI is a critical error"
+  await RelaunchEnforcer._updateDelegatedWarning();
+  Assert.strictEqual(
+    RelaunchEnforcer._shownPhase,
+    null,
+    "Nothing was shown without a warning UI delegate"
+  );
+
+  let shownPhase = null;
+  RelaunchEnforcer.registerWarningUIDelegate({
+    showOrUpdate({ phase }) {
+      shownPhase = phase;
+      return true;
+    },
+    hide() {},
+    isVisible() {
+      return false;
+    },
+  });
+  await RelaunchEnforcer._refreshChain;
+  Assert.strictEqual(
+    shownPhase,
+    RelaunchPhase.WARNING,
+    "Registering a delegate showed the warning the failed lookup skipped"
   );
   RelaunchEnforcer.testingOnly_reset();
 });

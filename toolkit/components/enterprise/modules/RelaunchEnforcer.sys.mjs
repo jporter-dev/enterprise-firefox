@@ -26,6 +26,11 @@ const DEFAULT_GRACE_PERIOD_MINUTES = 10;
 // How close to the deadline the warning escalates to the imminent phase.
 const IMMINENT_THRESHOLD_MS = 5 * MS_PER_MINUTE;
 
+// The application provides its warning UI through this category. An entry's
+// value is the URL of a module exporting registerRelaunchWarningUI(). Nothing
+// instantiates the category, so the module loads only when a warning is due.
+const WARNING_UI_CATEGORY = "enterprise-relaunch-warning-ui";
+
 // The longest budget the contract supports. nsITimer takes a 32-bit millisecond
 // delay, so a wait past 2^32 - 1 ms, about 49.7 days, wraps and fires early.
 const MAX_BUDGET_MINUTES = 30 * 24 * 60;
@@ -57,8 +62,9 @@ export const RelaunchEnforcer = {
   _awaitingSessionRestore: false,
   // Serializes bar updates against the shown-state above.
   _refreshChain: Promise.resolve(),
-  // Delegate the warning UI to the application, if it registered one.
+  // Delegate the warning UI to the application, loaded on first use.
   _warningUIDelegate: null,
+  _warningUILoaded: false,
 
   /**
    * Registers application-specific relaunch warning UI. Only one delegate can
@@ -383,11 +389,12 @@ export const RelaunchEnforcer = {
     if (!this._schedule || this._restarting) {
       return;
     }
-    const delegate = this._warningUIDelegate;
+    const delegate = this._appWarningUI();
     if (!delegate) {
-      throw new Error(
-        "No relaunch warning UI delegate is registered; the user cannot be notified."
+      lazy.log.error(
+        "No relaunch warning UI is registered for this application; the user cannot be notified."
       );
+      return;
     }
     const { restartAt } = this._schedule;
     const remaining = restartAt - Date.now();
@@ -442,6 +449,32 @@ export const RelaunchEnforcer = {
     }
   },
 
+  /**
+   * The application's warning UI, loading it from WARNING_UI_CATEGORY the first
+   * time one is asked for. Resolving it here rather than at startup keeps the
+   * delegate independent of which phase the application registers from: the
+   * first console poll runs at "policies-startup", ahead of any phase Firefox
+   * can register from without loading these modules before profile selection.
+   *
+   * @returns {object|null} The delegate, or null if the application has none.
+   */
+  _appWarningUI() {
+    if (this._warningUIDelegate || this._warningUILoaded) {
+      return this._warningUIDelegate;
+    }
+    this._warningUILoaded = true;
+    for (const { value: url } of Services.catMan.enumerateCategory(
+      WARNING_UI_CATEGORY
+    )) {
+      try {
+        ChromeUtils.importESModule(url).registerRelaunchWarningUI();
+      } catch (e) {
+        lazy.log.error(`Failed to register the warning UI from ${url}:`, e);
+      }
+    }
+    return this._warningUIDelegate;
+  },
+
   _hideNotification() {
     this._warningUIDelegate?.hide();
     this._shownPhase = null;
@@ -483,6 +516,8 @@ export const RelaunchEnforcer = {
     this._stopAwaitingSessionRestore();
     this._hideNotification();
     this._warningUIDelegate = null;
+    // Tests register the delegate they want, so leave the category alone.
+    this._warningUILoaded = true;
     this._restarting = false;
   },
 };

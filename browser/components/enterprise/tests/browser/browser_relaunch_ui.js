@@ -38,7 +38,8 @@ function notificationFluentId(win, value) {
 // Every task starts from here, so a failing task cannot fail the ones after it.
 async function reset(win) {
   RelaunchEnforcer.testingOnly_reset();
-  // The reset dropped the delegate registered at profile-after-change.
+  // The reset dropped the delegate, and suppressed the category lookup that
+  // would otherwise re-resolve it, so put Firefox's own back by hand.
   RelaunchEnforcer.registerWarningUIDelegate(EnterpriseForcedQuit.warningUI);
   win.gNotificationBox.removeAllNotifications(true);
   await TestUtils.waitForCondition(
@@ -53,14 +54,17 @@ add_setup(async function () {
   registerCleanupFunction(() => {
     RelaunchEnforcer._requestUpdateCheck = requestUpdateCheck;
   });
+  // Both delegates are resolved from their components.conf categories on first
+  // use, so asking is what registers them.
   Assert.strictEqual(
-    RelaunchEnforcer._warningUIDelegate,
+    RelaunchEnforcer._appWarningUI(),
     EnterpriseForcedQuit.warningUI,
-    "The warning UI delegate was registered at profile-after-change"
+    "The warning UI category resolves to Firefox's delegate"
   );
-  Assert.ok(
-    ConsoleClient._beforeForcedQuitHook,
-    "The before-forced-quit hook was registered at profile-after-change"
+  Assert.strictEqual(
+    typeof ConsoleClient._appForcedQuitHook(),
+    "function",
+    "The forced-quit hook category resolves to Firefox's hook"
   );
   registerCleanupFunction(() =>
     reset(Services.wm.getMostRecentBrowserWindow())
@@ -426,8 +430,8 @@ add_task(async function test_forced_quit_hook_suppresses_can_close() {
   await reset(win);
 
   try {
-    // Run the registered hook, as quitIgnoringCanClose() would.
-    await ConsoleClient._beforeForcedQuitHook(Ci.nsIAppStartup.eForceQuit);
+    // Run the hook as quitIgnoringCanClose() would, resolving it the same way.
+    await ConsoleClient._appForcedQuitHook()(Ci.nsIAppStartup.eForceQuit);
     for (const w of Services.wm.getEnumerator("navigator:browser")) {
       Assert.ok(
         w.skipNextCanClose,
