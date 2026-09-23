@@ -6,8 +6,8 @@
 const { RelaunchEnforcer, RelaunchPhase } = ChromeUtils.importESModule(
   "resource://gre/modules/enterprise/RelaunchEnforcer.sys.mjs"
 );
-const { ConsoleClient } = ChromeUtils.importESModule(
-  "resource://gre/modules/enterprise/ConsoleClient.sys.mjs"
+const { ForcedQuitHandler } = ChromeUtils.importESModule(
+  "resource://gre/modules/enterprise/ForcedQuitHandler.sys.mjs"
 );
 const { EnterpriseForcedQuit } = ChromeUtils.importESModule(
   "resource:///modules/enterprise/EnterpriseForcedQuit.sys.mjs"
@@ -62,7 +62,7 @@ add_setup(async function () {
     "The warning UI category resolves to Firefox's delegate"
   );
   Assert.strictEqual(
-    typeof ConsoleClient._appForcedQuitHook(),
+    typeof ForcedQuitHandler._appForcedQuitHook(),
     "function",
     "The forced-quit hook category resolves to Firefox's hook"
   );
@@ -495,8 +495,7 @@ add_task(async function test_forced_quit_hook_suppresses_can_close() {
   await reset(win);
 
   try {
-    // Run the hook as quitIgnoringCanClose() would, resolving it the same way.
-    await ConsoleClient._appForcedQuitHook()(Ci.nsIAppStartup.eForceQuit);
+    await ForcedQuitHandler._appForcedQuitHook()(Ci.nsIAppStartup.eForceQuit);
     for (const w of Services.wm.getEnumerator("navigator:browser")) {
       Assert.ok(
         w.skipNextCanClose,

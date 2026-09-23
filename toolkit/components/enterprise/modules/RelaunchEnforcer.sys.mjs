@@ -5,9 +5,10 @@
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
-  ConsoleClient: "resource://gre/modules/enterprise/ConsoleClient.sys.mjs",
   createEnterpriseLogger:
     "resource://gre/modules/enterprise/EnterpriseCommon.sys.mjs",
+  ForcedQuitHandler:
+    "resource://gre/modules/enterprise/ForcedQuitHandler.sys.mjs",
   ScheduledTask: "resource://gre/modules/ScheduledTask.sys.mjs",
 });
 
@@ -361,7 +362,7 @@ export const RelaunchEnforcer = {
     lazy.log.warn("Restart deadline reached; restarting.");
     // eForceQuit is not forceful on its own: a page's beforeunload handler puts
     // up a dialog the user can cancel the whole restart from (bug 2039266).
-    lazy.ConsoleClient.quitIgnoringCanClose(
+    lazy.ForcedQuitHandler.quitIgnoringCanClose(
       Ci.nsIAppStartup.eForceQuit | Ci.nsIAppStartup.eRestart
     );
   },

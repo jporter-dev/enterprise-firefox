@@ -10,9 +10,9 @@ sys.path.append(os.path.dirname(__file__))
 
 from felt_tests import FeltTests
 
-IMPORT_CONSOLE_CLIENT = """
-const { ConsoleClient } = ChromeUtils.importESModule(
-  "resource://gre/modules/enterprise/ConsoleClient.sys.mjs"
+IMPORT_FORCED_QUIT_HANDLER = """
+const { ForcedQuitHandler } = ChromeUtils.importESModule(
+  "resource://gre/modules/enterprise/ForcedQuitHandler.sys.mjs"
 );
 """
 
@@ -32,9 +32,9 @@ class ForcedSignout(FeltTests):
 
         try:
             self._child_driver.execute_script(
-                IMPORT_CONSOLE_CLIENT
+                IMPORT_FORCED_QUIT_HANDLER
                 + """
-                ConsoleClient._forcedQuitHook = async flags => {
+                ForcedQuitHandler._forcedQuitHook = async flags => {
                   await IOUtils.writeUTF8(arguments[0], String(flags));
                 };
                 Services.obs.notifyObservers(null, "felt-firefox-shutdown");
@@ -61,9 +61,9 @@ class ForcedSignout(FeltTests):
 
         try:
             self._child_driver.execute_script(
-                IMPORT_CONSOLE_CLIENT
+                IMPORT_FORCED_QUIT_HANDLER
                 + """
-                ConsoleClient._forcedQuitHook = () => {
+                ForcedQuitHandler._forcedQuitHook = () => {
                   throw new Error("Expected forced-signout hook failure");
                 };
                 Services.obs.notifyObservers(null, "felt-firefox-shutdown");
@@ -84,13 +84,13 @@ class ForcedSignout(FeltTests):
 
         try:
             self._child_driver.execute_script(
-                IMPORT_CONSOLE_CLIENT
+                IMPORT_FORCED_QUIT_HANDLER
                 + """
                 Services.prefs.setIntPref(
                   "enterprise.felt.forced_quit_hook_timeout_ms",
                   2000
                 );
-                ConsoleClient._forcedQuitHook = () => new Promise(() => {});
+                ForcedQuitHandler._forcedQuitHook = () => new Promise(() => {});
                 Services.obs.notifyObservers(null, "felt-firefox-shutdown");
                 """
             )
