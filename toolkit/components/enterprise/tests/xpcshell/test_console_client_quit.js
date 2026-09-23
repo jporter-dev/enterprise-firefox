@@ -29,6 +29,8 @@ add_task(async function test_concurrent_quit_requests_preserve_restart() {
       Ci.nsIAppStartup.eForceQuit | Ci.nsIAppStartup.eRestart
     );
 
+    Assert.equal(firstQuit, secondQuit, "Concurrent callers share the promise");
+    await Promise.resolve();
     Assert.equal(hookCalls, 1, "The hook runs once");
     Assert.equal(quitCalls.length, 0, "Quit waits for the hook");
 
@@ -39,6 +41,11 @@ add_task(async function test_concurrent_quit_requests_preserve_restart() {
       quitCalls,
       [Ci.nsIAppStartup.eForceQuit | Ci.nsIAppStartup.eRestart],
       "The single quit includes the later restart flag"
+    );
+    Assert.equal(
+      ConsoleClient.quitIgnoringCanClose(),
+      firstQuit,
+      "A later request does not start another quit"
     );
   } finally {
     finishHook();

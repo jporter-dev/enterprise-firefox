@@ -790,14 +790,16 @@ export const ConsoleClient = {
    *   be added to come back up. eForceQuit on its own by default.
    * @returns {Promise<void>} Resolves after the quit has been requested.
    */
-  async quitIgnoringCanClose(aFlags = Ci.nsIAppStartup.eForceQuit) {
+  quitIgnoringCanClose(aFlags = Ci.nsIAppStartup.eForceQuit) {
     if (Services.felt.isFeltUI()) {
-      throw new Error(
-        "quitIgnoringCanClose(): Called from Felt context, which is not allowed."
+      return Promise.reject(
+        new Error(
+          "quitIgnoringCanClose(): Called from Felt context, which is not allowed."
+        )
       );
     }
     this._pendingQuitFlags |= aFlags;
-    this._quitPromise ??= this._performQuit();
+    this._quitPromise ??= Promise.resolve().then(() => this._performQuit());
     return this._quitPromise;
   },
 
