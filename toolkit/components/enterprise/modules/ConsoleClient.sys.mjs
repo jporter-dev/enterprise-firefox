@@ -5,8 +5,8 @@
 const lazy = {};
 
 // The application provides its pre-forced-quit hook through this category. An
-// entry's value is the URL of a module exporting registerForcedQuitHook().
-// Nothing instantiates the category, so the module loads only on a forced quit.
+// entry's value is the URL of a module exporting beforeForcedQuit(aFlags).
+// The module is imported on the first forced quit.
 const FORCED_QUIT_HOOK_CATEGORY = "enterprise-forced-quit-hook";
 
 // Bound the forced quit hook so a stalled one can't wedge the quit.
@@ -120,11 +120,9 @@ export const ConsoleClient = {
   _refreshPromise: null,
   _consoleUriReadyPromise: null,
 
-  /**
-   * Optional application-specific preparation to run before a forced quit.
-   */
-  _beforeForcedQuitHook: null,
-  _forcedQuitHookLoaded: false,
+  // The application's pre-forced-quit hook, undefined until first resolved
+  // from the category, then the hook or null when the application has none.
+  _forcedQuitHook: undefined,
 
   /** Coalesces quit requests while the hook runs. */
   _quitPromise: null,
@@ -711,79 +709,34 @@ export const ConsoleClient = {
   },
 
   /**
-   * Registers application-specific pre-shutdown logic to run before a forced
-   * quit, such as flushing state or suppressing close vetoes. Only one hook
-   * can be registered at a time; unregisterBeforeForcedQuitHook() must run
-   * before another registration.
-   *
-   * The hook gates a quit the console mandated, so it must settle. One that
-   * has not settled within FORCED_QUIT_HOOK_TIMEOUT_PREF is abandoned and the
-   * quit proceeds without it.
-   *
-   * @param {function(number): (void|Promise<void>)} aHook - Receives
-   *   nsIAppStartup quit flags.
-   * @returns {void}
-   */
-  registerBeforeForcedQuitHook(aHook) {
-    if (typeof aHook !== "function") {
-      throw new TypeError("The before-forced-quit hook must be a function.");
-    }
-    if (this._beforeForcedQuitHook) {
-      throw new Error("A before-forced-quit hook is already registered.");
-    }
-    this._beforeForcedQuitHook = aHook;
-  },
-
-  /**
-   * Withdraws the hook registerBeforeForcedQuitHook() took, which the caller
-   * names so that an unbalanced call cannot drop someone else's hook.
-   *
-   * @param {function(number): (void|Promise<void>)} aHook - The hook to drop.
-   * @returns {void}
-   */
-  unregisterBeforeForcedQuitHook(aHook) {
-    if (this._beforeForcedQuitHook !== aHook) {
-      throw new Error(
-        "The before-forced-quit hook to unregister is not the registered one."
-      );
-    }
-    this._beforeForcedQuitHook = null;
-  },
-
-  /**
-   * The application's pre-forced-quit hook, loading it from
-   * FORCED_QUIT_HOOK_CATEGORY the first time one is asked for. A forced quit
-   * can be mandated before any startup phase the application registers from,
-   * so the hook is resolved here rather than expected to be in place already.
+   * Resolves the application's forced-quit hook from
+   * FORCED_QUIT_HOOK_CATEGORY on first use.
    *
    * @returns {?function(number): (void|Promise<void>)} The hook, or null if
    *   the application has none.
    */
   _appForcedQuitHook() {
-    if (this._beforeForcedQuitHook || this._forcedQuitHookLoaded) {
-      return this._beforeForcedQuitHook;
+    if (this._forcedQuitHook !== undefined) {
+      return this._forcedQuitHook;
     }
-    this._forcedQuitHookLoaded = true;
+    this._forcedQuitHook = null;
     for (const { value: url } of Services.catMan.enumerateCategory(
       FORCED_QUIT_HOOK_CATEGORY
     )) {
       try {
-        ChromeUtils.importESModule(url).registerForcedQuitHook();
+        this._forcedQuitHook = ChromeUtils.importESModule(url).beforeForcedQuit;
       } catch (e) {
-        lazy.log.error(
-          `Failed to register the forced-quit hook from ${url}:`,
-          e
-        );
+        lazy.log.error(`Failed to load the forced-quit hook from ${url}:`, e);
       }
     }
-    return this._beforeForcedQuitHook;
+    return this._forcedQuitHook;
   },
 
   /**
-   * Quits the application. The registered before-forced-quit hook, if any,
+   * Quits the application. The application's before-forced-quit hook, if any,
    * runs first; applications use it to keep close callbacks from preventing
    * the quit. Ignoring those callbacks is the hook's job, so with no hook
-   * registered, or one that fails or is abandoned on timeout, the quit is
+   * available, or one that fails or is abandoned on timeout, the quit is
    * still requested regardless of the hook's outcome.
    *
    * @param {number} [aFlags] - nsIAppStartup quit flags, to which eRestart can

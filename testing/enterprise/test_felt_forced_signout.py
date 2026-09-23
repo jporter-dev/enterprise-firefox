@@ -10,17 +10,10 @@ sys.path.append(os.path.dirname(__file__))
 
 from felt_tests import FeltTests
 
-# ConsoleClient keeps a single hook slot, so the one the application registered
-# at startup has to go before the test can install its own.
-TAKE_OVER_HOOK_SLOT = """
+IMPORT_CONSOLE_CLIENT = """
 const { ConsoleClient } = ChromeUtils.importESModule(
   "resource://gre/modules/enterprise/ConsoleClient.sys.mjs"
 );
-if (ConsoleClient._beforeForcedQuitHook) {
-  ConsoleClient.unregisterBeforeForcedQuitHook(
-    ConsoleClient._beforeForcedQuitHook
-  );
-}
 """
 
 
@@ -39,11 +32,11 @@ class ForcedSignout(FeltTests):
 
         try:
             self._child_driver.execute_script(
-                TAKE_OVER_HOOK_SLOT
+                IMPORT_CONSOLE_CLIENT
                 + """
-                ConsoleClient.registerBeforeForcedQuitHook(async flags => {
+                ConsoleClient._forcedQuitHook = async flags => {
                   await IOUtils.writeUTF8(arguments[0], String(flags));
-                });
+                };
                 Services.obs.notifyObservers(null, "felt-firefox-shutdown");
                 """,
                 script_args=(quit_flags_path,),
@@ -68,11 +61,11 @@ class ForcedSignout(FeltTests):
 
         try:
             self._child_driver.execute_script(
-                TAKE_OVER_HOOK_SLOT
+                IMPORT_CONSOLE_CLIENT
                 + """
-                ConsoleClient.registerBeforeForcedQuitHook(() => {
+                ConsoleClient._forcedQuitHook = () => {
                   throw new Error("Expected forced-signout hook failure");
-                });
+                };
                 Services.obs.notifyObservers(null, "felt-firefox-shutdown");
                 """
             )
@@ -91,15 +84,13 @@ class ForcedSignout(FeltTests):
 
         try:
             self._child_driver.execute_script(
-                TAKE_OVER_HOOK_SLOT
+                IMPORT_CONSOLE_CLIENT
                 + """
                 Services.prefs.setIntPref(
                   "enterprise.felt.forced_quit_hook_timeout_ms",
                   2000
                 );
-                ConsoleClient.registerBeforeForcedQuitHook(
-                  () => new Promise(() => {})
-                );
+                ConsoleClient._forcedQuitHook = () => new Promise(() => {});
                 Services.obs.notifyObservers(null, "felt-firefox-shutdown");
                 """
             )

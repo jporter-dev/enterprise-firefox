@@ -5,7 +5,6 @@
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
-  ConsoleClient: "resource://gre/modules/enterprise/ConsoleClient.sys.mjs",
   createEnterpriseLogger:
     "resource://gre/modules/enterprise/EnterpriseCommon.sys.mjs",
   InfoBar: "resource:///modules/asrouter/InfoBar.sys.mjs",
@@ -228,28 +227,21 @@ const warningUI = {
  */
 export const EnterpriseForcedQuit = {
   warningUI,
-
-  /**
-   * Keeps page and tab-close callbacks from vetoing a quit the console
-   * mandated.
-   */
-  beforeForcedQuit() {
-    for (const win of Services.wm.getEnumerator("navigator:browser")) {
-      win.skipNextCanClose = true;
-    }
-  },
 };
+
+/**
+ * Prevents page and tab-close callbacks from vetoing a console-mandated quit.
+ * Exported through the "enterprise-forced-quit-hook" category in components.conf.
+ */
+export function beforeForcedQuit() {
+  for (const win of Services.wm.getEnumerator("navigator:browser")) {
+    win.skipNextCanClose = true;
+  }
+}
 
 /** The "enterprise-relaunch-warning-ui" entry point (see components.conf). */
 export function registerRelaunchWarningUI() {
   lazy.RelaunchEnforcer.registerWarningUIDelegate(
     EnterpriseForcedQuit.warningUI
-  );
-}
-
-/** The "enterprise-forced-quit-hook" entry point (see components.conf). */
-export function registerForcedQuitHook() {
-  lazy.ConsoleClient.registerBeforeForcedQuitHook(() =>
-    EnterpriseForcedQuit.beforeForcedQuit()
   );
 }
