@@ -1,6 +1,6 @@
 (urlbar-architecture-overview)=
 
-# Address Bar Architecture
+# Architecture
 
 The address bar and the search bars are implemented as a
 *model-view-controller* (MVC) system. One of the scopes of this architecture is

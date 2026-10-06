@@ -299,9 +299,6 @@ def taskgraph_decision(options, parameters):
         # see https://bugzilla.mozilla.org/show_bug.cgi?id=1989038 for additional
         # details
 
-        # this is just a test to check whether the from_json() function is working
-        _, _ = TaskGraph.from_json(full_task_json)
-
         # write out the target task set to allow reproducing this as input
         write_artifact("target-tasks.json", list(tgg.target_task_set.tasks.keys()))
 

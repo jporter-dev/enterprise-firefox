@@ -20,8 +20,8 @@
  */
 
 /**
- * pdfjsVersion = 6.4.305
- * pdfjsBuild = 2581d8f70
+ * pdfjsVersion = 6.4.313
+ * pdfjsBuild = 35f87e343
  */
 
 ;// ./web/ui_utils.js
@@ -892,7 +892,7 @@ const {
 } = globalThis.pdfjsLib;
 
 ;// ./web/internal_evt.js
-const INTERNAL_EVT = "201d4100-6e9f-455a-8ef4-2a8ca6c25ac8";
+const INTERNAL_EVT = "4a430a97-4e48-4caf-a158-59352aec4172";
 const internalOpt = Object.freeze({
   internal: INTERNAL_EVT
 });
@@ -8810,7 +8810,7 @@ class PDFViewer {
   #savedPageViews = null;
   #deletedPageNumbers = null;
   constructor(options) {
-    const viewerVersion = "6.4.305";
+    const viewerVersion = "6.4.313";
     if (version !== viewerVersion) {
       throw new Error(`The API version "${version}" does not match the Viewer version "${viewerVersion}".`);
     }
