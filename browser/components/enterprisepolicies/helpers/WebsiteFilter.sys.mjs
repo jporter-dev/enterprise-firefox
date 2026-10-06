@@ -152,7 +152,8 @@ export let WebsiteFilter = {
     let contentType = newChannel.loadInfo.externalContentPolicyType;
     if (
       (contentType == Ci.nsIContentPolicy.TYPE_DOCUMENT ||
-        contentType == Ci.nsIContentPolicy.TYPE_SUBDOCUMENT) &&
+        contentType == Ci.nsIContentPolicy.TYPE_SUBDOCUMENT ||
+        contentType == Ci.nsIContentPolicy.TYPE_OBJECT) &&
       !this.isAllowed(newChannel.URI.spec)
     ) {
       oldChannel.cancel(Cr.NS_ERROR_BLOCKED_BY_POLICY);
@@ -172,7 +173,8 @@ export let WebsiteFilter = {
     }
     if (
       contentType == Ci.nsIContentPolicy.TYPE_DOCUMENT ||
-      contentType == Ci.nsIContentPolicy.TYPE_SUBDOCUMENT
+      contentType == Ci.nsIContentPolicy.TYPE_SUBDOCUMENT ||
+      contentType == Ci.nsIContentPolicy.TYPE_OBJECT
     ) {
       if (!url || !this.isAllowed(url)) {
         return Ci.nsIContentPolicy.REJECT_POLICY;
@@ -195,7 +197,8 @@ export let WebsiteFilter = {
       if (
         !channel.isDocument &&
         contentType != Ci.nsIContentPolicy.TYPE_DOCUMENT &&
-        contentType != Ci.nsIContentPolicy.TYPE_SUBDOCUMENT
+        contentType != Ci.nsIContentPolicy.TYPE_SUBDOCUMENT &&
+        contentType != Ci.nsIContentPolicy.TYPE_OBJECT
       ) {
         return;
       }
