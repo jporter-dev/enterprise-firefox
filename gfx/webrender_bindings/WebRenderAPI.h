@@ -143,7 +143,8 @@ class TransactionBuilder final {
                       wr::WrPipelineId pipeline_id,
                       wr::BuiltDisplayListDescriptor dl_descriptor,
                       wr::Vec<uint8_t>& dl_items_data,
-                      wr::Vec<uint8_t>& dl_spatial_tree);
+                      wr::Vec<uint8_t>& dl_spatial_tree,
+                      wr::Vec<uint8_t>& dl_interner_delta);
 
   void ClearDisplayList(Epoch aEpoch, wr::IdNamespace aIdNamespace,
                         wr::WrPipelineId aPipeline);
@@ -621,10 +622,15 @@ class DisplayListBuilder final {
   wr::WrClipId DefineImageMaskClip(const wr::ImageMask& aMask,
                                    const nsTArray<wr::LayoutPoint>&,
                                    wr::FillRule);
+  // aAntiAliased keeps the clip at its exact position instead of snapping it
+  // to the device pixel grid. It is meant for clips defined in the same space
+  // as anti-aliased primitives, such as SVG user space.
   wr::WrClipId DefineRoundedRectClip(Maybe<wr::WrSpatialId> aSpace,
-                                     const wr::ComplexClipRegion& aComplex);
+                                     const wr::ComplexClipRegion& aComplex,
+                                     bool aAntiAliased = false);
   wr::WrClipId DefineRectClip(Maybe<wr::WrSpatialId> aSpace,
-                              wr::LayoutRect aClipRect);
+                              wr::LayoutRect aClipRect,
+                              bool aAntiAliased = false);
 
   wr::WrSpatialId DefineStickyFrame(const ActiveScrolledRoot* aStickyAsr,
                                     Maybe<wr::WrSpatialId> aParentSpatialId,

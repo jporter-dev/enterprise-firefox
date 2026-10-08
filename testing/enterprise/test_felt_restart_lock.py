@@ -100,7 +100,7 @@ class AppRestartLock(FeltTests):
         """Locking disabled: an update-driven restart clears stale credentials."""
         browser_pid = self._begin_restart_test(locking_enabled=False)
         self._seed_locking_token()
-        assert self._felt_has_locking_token(), "The test must begin with a stored token"
+        assert self.felt_has_locking_token(), "The test must begin with a stored token"
 
         self.quit_child_browser_for_restart()
         self._settle_after_child_exit(browser_pid)
@@ -122,7 +122,7 @@ class AppRestartLock(FeltTests):
         to sign out."""
         browser_pid = self._start_signed_in()
         self._set_locking_pref(PREF_LOCKING_RESTART, True)
-        assert not self._felt_has_locking_token(), (
+        assert not self.felt_has_locking_token(), (
             "The test must begin with no stored token"
         )
 
@@ -138,7 +138,7 @@ class AppRestartLock(FeltTests):
         )
         self.assert_user_signed_in(env=Environment.FIREFOX)
 
-        assert not self._felt_has_locking_token(), (
+        assert not self.felt_has_locking_token(), (
             "A restart without a pending update must not persist a resume token"
         )
         assert self.signout_count.value == 0, (

@@ -32,6 +32,7 @@ tasks-from:
     - awsy.yml
     - compiled.yml
     - devtools-compat.yml
+    - enterprise-end2end.yml
     - firefox-ui.yml
     - marionette.yml
     - misc.yml
@@ -40,6 +41,11 @@ tasks-from:
 
 task-defaults:
     run-on-repo-type: ["hg", "git"]
+    priority:
+        by-project:
+            autoland: high
+            mozilla-central: medium
+            default: null
     attributes:
         retrigger: true
     use-python:

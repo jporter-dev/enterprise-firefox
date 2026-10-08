@@ -204,11 +204,6 @@ class SecretSettingsFragment : PreferenceFragmentCompat(), SystemInsetsPaddedFra
             onPreferenceChangeListener = SharedPreferenceUpdater()
         }
 
-        requirePreference<SwitchPreferenceCompat>(R.string.pref_key_enable_add_shortcuts_improvement).apply {
-            isChecked = settings.enableAddShortcutsImprovement
-            onPreferenceChangeListener = SharedPreferenceUpdater()
-        }
-
         requirePreference<SwitchPreferenceCompat>(R.string.pref_key_show_more_shortcuts).apply {
             isChecked = settings.showMoreShortcuts
             onPreferenceChangeListener = SharedPreferenceUpdater()
@@ -406,6 +401,11 @@ class SecretSettingsFragment : PreferenceFragmentCompat(), SystemInsetsPaddedFra
             onPreferenceChangeListener = SharedPreferenceUpdater()
         }
 
+        requirePreference<SwitchPreferenceCompat>(R.string.pref_key_enable_account_settings_new_ui).apply {
+            isChecked = settings.accountSettingsNewUi
+            onPreferenceChangeListener = SharedPreferenceUpdater()
+        }
+
         requirePreference<SwitchPreferenceCompat>(R.string.pref_key_enable_homepage_customization).apply {
             isChecked = settings.enableHomepageCustomization
             onPreferenceChangeListener = SharedPreferenceUpdater()
@@ -487,6 +487,33 @@ class SecretSettingsFragment : PreferenceFragmentCompat(), SystemInsetsPaddedFra
             isVisible = Config.channel.isNightlyOrDebug && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
             isChecked = settings.isAppZygoteEnabled
             onPreferenceChangeListener = SharedPreferenceUpdater()
+        }
+
+        // These two are mutually exclusive, which the Settings setters enforce, so they write through Settings
+        // rather than SharedPreferenceUpdater and refresh each other to reflect the setter's side effect.
+        val powerSavingModeAutoPreference =
+            requirePreference<SwitchPreferenceCompat>(R.string.pref_key_power_saving_mode_auto_enabled)
+        val powerSavingModeManualPreference =
+            requirePreference<SwitchPreferenceCompat>(R.string.pref_key_power_saving_mode_manually_enabled)
+
+        powerSavingModeAutoPreference.apply {
+            isVisible = Config.channel.isNightlyOrDebug
+            isChecked = settings.powerSavingModeAutoEnabled
+            onPreferenceChangeListener = Preference.OnPreferenceChangeListener { _, newValue ->
+                settings.powerSavingModeAutoEnabled = newValue as Boolean
+                powerSavingModeManualPreference.isChecked = settings.powerSavingModeManuallyEnabled
+                true
+            }
+        }
+
+        powerSavingModeManualPreference.apply {
+            isVisible = Config.channel.isNightlyOrDebug
+            isChecked = settings.powerSavingModeManuallyEnabled
+            onPreferenceChangeListener = Preference.OnPreferenceChangeListener { _, newValue ->
+                settings.powerSavingModeManuallyEnabled = newValue as Boolean
+                powerSavingModeAutoPreference.isChecked = settings.powerSavingModeAutoEnabled
+                true
+            }
         }
 
         requirePreference<SwitchPreferenceCompat>(R.string.pref_key_enable_persistent_onboarding).apply {

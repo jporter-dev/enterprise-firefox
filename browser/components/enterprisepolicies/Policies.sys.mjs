@@ -960,21 +960,10 @@ export var Policies = {
         }
       }
 
-      if (param.Block) {
-        const hosts = param.Block.map(url => url.hostname)
-          .sort()
-          .join("\n");
-        lazy.runOncePerModification(
-          "clearCookiesForBlockedHosts",
-          hosts,
-          () => {
-            for (const blocked of param.Block) {
-              Services.cookies.removeCookiesWithOriginAttributes(
-                "{}",
-                blocked.hostname
-              );
-            }
-          }
+      for (const blocked of param.Block ?? []) {
+        Services.cookies.removeCookiesWithOriginAttributes(
+          "{}",
+          blocked.hostname
         );
       }
 
@@ -1070,7 +1059,6 @@ export var Policies = {
       // (see onBeforeUIStartup) are left in place as the shim is being removed
       // in one of the next releases, and SanitizeOnShutdown.Exceptions
       // owns these entries going forward.
-      lazy.clearRunOnceModification("clearCookiesForBlockedHosts");
       lazy.PoliciesUtils.unsetDefaultPref("network.cookie.cookieBehavior");
       lazy.PoliciesUtils.unsetDefaultPref(
         "network.cookie.cookieBehavior.pbmode"
@@ -1500,6 +1488,10 @@ export var Policies = {
     onBeforeUIStartup(manager, param) {
       if (param) {
         manager.disallowFeature("passwordReveal");
+        lazy.PoliciesUtils.setAndLockPref(
+          "layout.forms.reveal-password-button.enabled",
+          false
+        );
       }
     },
   },
@@ -3855,19 +3847,27 @@ export var Policies = {
           param.Restart.Action === "lock"
         );
       }
+      if (param.Crash) {
+        lazy.PoliciesUtils.setAndLockPref(
+          "enterprise.locking.crash",
+          param.Crash.Action === "lock"
+        );
+      }
     },
     onRemove(manager, oldParams) {
+      // unsetAndUnlockPref restores the build default but never re-locks;
+      // re-lock to match the locked defaults the enterprise build ships.
       if (oldParams.Shutdown) {
         lazy.PoliciesUtils.unsetAndUnlockPref("enterprise.locking.shutdown");
-        // unsetAndUnlockPref restores the build default but never re-locks;
-        // re-lock to match the locked default the enterprise build ships.
         Services.prefs.lockPref("enterprise.locking.shutdown");
       }
       if (oldParams.Restart) {
         lazy.PoliciesUtils.unsetAndUnlockPref("enterprise.locking.restart");
-        // unsetAndUnlockPref restores the build default but never re-locks;
-        // re-lock to match the locked default the enterprise build ships.
         Services.prefs.lockPref("enterprise.locking.restart");
+      }
+      if (oldParams.Crash) {
+        lazy.PoliciesUtils.unsetAndUnlockPref("enterprise.locking.crash");
+        Services.prefs.lockPref("enterprise.locking.crash");
       }
     },
   },

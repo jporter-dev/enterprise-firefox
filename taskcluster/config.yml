@@ -103,6 +103,7 @@ treeherder:
         'DTbc': 'DevTools remote debugging backward compatibility tests'
         'Fetch': 'Fetch and store content'
         'Fxfn': 'Firefox functional tests'
+        'gv-junit': 'GeckoView junit tests'
         'l10n-bump': 'L10n Bumper'
         'M': 'Mochitests'
         'M-f': 'Mochitest failures'
@@ -263,6 +264,7 @@ treeherder:
         'BMS-Ent': "Mac signing for Enterprise repacks"
         'BMN-Ent': "Mac notarization for Enterprise repacks"
         'MnEnt': 'Marionette tests Enterprise'
+        'E2E': 'Enterprise end-to-end tests, per console repository ref'
 
         # The below symbols are from firefox-android (fenix/focus/android-components)
         'buildconfig': 'Make sure the content of .buildconfig.yml matches what gradle knows about its projects'
@@ -282,6 +284,7 @@ treeherder:
         'fenix-nightly': 'Fenix nightly-related tasks'
         'fenix-nightly-nobp': 'Fenix nightly builds without baseline profiles'
         'fenix-nightlySim': 'Nightly-related tasks that run on each github push'
+        'fenix-nightlyAsReleaseSim': 'Fenix nightly-as-release performance tasks (nightly built against release-milestone GeckoView)'
         'fenix-release': 'Fenix production-related tasks'
 
         # This list is based on mobile/android/android-components/.buildconfig.yml except the exceptions down below
@@ -624,6 +627,36 @@ partner-urls:
 # message and raises the priority to get results as quickly as possible.
 task-priority:
     by-project:
+        # Enterprise has no project branch of its own, so it keys off the head
+        # ref to mirror the mozilla-* priorities above. On worker pools shared
+        # with the gecko trust domain (the macOS hardware, mainly) every tier
+        # drops one notch below its gecko counterpart, so Enterprise never
+        # starves Firefox out of a pool it does not own.
+        'enterprise-(firefox|thunderbird)':
+            by-shared-worker:
+                'true':
+                    by-head-ref:
+                        'enterprise-release': 'very-high'
+                        'enterprise-beta':
+                            by-shipping:
+                                'true': 'high'
+                                'default': 'very-low'
+                        'enterprise-main': 'low'
+                        'default': 'lowest'
+                'default':
+                    by-head-ref:
+                        'enterprise-release': 'highest'
+                        'enterprise-beta':
+                            by-shipping:
+                                'true': 'very-high'
+                                'default': 'low'
+                        'enterprise-main': 'medium'
+                        'default': 'very-low'
+        # Try pushes ignore the head ref: they are never shipping work.
+        'enterprise-firefox-try':
+            by-shared-worker:
+                'true': 'lowest'
+                'default': 'very-low'
         'mozilla-release': 'highest'
         'mozilla-esr.*':
             by-shipping:
@@ -646,7 +679,7 @@ taskgraph:
 
 workers:
     aliases:
-        b-linux(|-docker(|-x?large|-updatebot)-amd|-medium|-aarch64|-xlarge|-kvm):
+        b-linux(|-docker(|-x?large|-updatebot)-amd|-medium|-aarch64|-x?large|-kvm):
             provisioner: '{trust-domain}-{level}'
             implementation: docker-worker
             os: linux
@@ -840,7 +873,7 @@ workers:
             implementation: docker-worker
             os: linux
             worker-type: 't-linux-docker-kvm'
-        t-linux-(talos|netperf)(-1804|-2404)?:
+        t-linux-(talos|netperf)-2404:
             provisioner: releng-hardware
             implementation: generic-worker
             os: linux
@@ -886,6 +919,11 @@ workers:
             os: macosx
             worker-type: 'gecko-{alias}'
         t-osx-1500-m-vms:
+            provisioner: releng-hardware
+            implementation: generic-worker
+            os: macosx
+            worker-type: 'gecko-{alias}'
+        t-osx-2700-m4:
             provisioner: releng-hardware
             implementation: generic-worker
             os: macosx

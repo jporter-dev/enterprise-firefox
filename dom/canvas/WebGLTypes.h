@@ -209,6 +209,7 @@ enum class WebGLTexDimensions : uint8_t { Tex2D, Tex3D };
 enum class WebGLExtensionID : uint8_t {
   ANGLE_instanced_arrays,
   EXT_blend_minmax,
+  EXT_clip_control,
   EXT_color_buffer_float,
   EXT_color_buffer_half_float,
   EXT_depth_clamp,
@@ -221,6 +222,7 @@ enum class WebGLExtensionID : uint8_t {
   EXT_texture_compression_bptc,
   EXT_texture_compression_rgtc,
   EXT_texture_filter_anisotropic,
+  EXT_texture_mirror_clamp_to_edge,
   EXT_texture_norm16,
   MOZ_debug,
   OES_draw_buffers_indexed,
@@ -1164,6 +1166,7 @@ struct TexUnpackBlobDesc final {
 
   webgl::PixelUnpackStateWebgl unpacking;
   bool applyUnpackTransforms = true;
+  gfx::SurfaceFormat destFormat = gfx::SurfaceFormat::UNKNOWN;
 
   // -
 
