@@ -124,9 +124,12 @@ impl FeltIpcClient {
         }
     }
 
-    pub fn notify_refresh_tokens(&self, request_id: u32) -> nsresult {
+    pub fn notify_refresh_tokens(&self, request_id: u32, network_loss_enforced: bool) -> nsresult {
         match &self.tx {
-            Some(tx) => match tx.send(FeltMessage::RefreshTokens(request_id)) {
+            Some(tx) => match tx.send(FeltMessage::RefreshTokens {
+                request_id,
+                network_loss_enforced,
+            }) {
                 Ok(()) => NS_OK,
                 Err(_) => NS_ERROR_CONNECTION_REFUSED,
             },
@@ -551,9 +554,9 @@ impl FeltClientThread {
         client.notify_crash_lock_intent(lock_intent)
     }
 
-    pub fn notify_refresh_tokens(&self, request_id: u32) -> nsresult {
+    pub fn notify_refresh_tokens(&self, request_id: u32, network_loss_enforced: bool) -> nsresult {
         trace!("FeltClientThread::refresh_tokens()");
         let client = self.ipc_client.borrow();
-        client.notify_refresh_tokens(request_id)
+        client.notify_refresh_tokens(request_id, network_loss_enforced)
     }
 }
