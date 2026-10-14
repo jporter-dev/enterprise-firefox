@@ -12,6 +12,8 @@ ChromeUtils.defineLazyGetter(lazy, "localization", () => {
 });
 
 ChromeUtils.defineESModuleGetters(lazy, {
+  ConsoleConnectionGuard:
+    "moz-src:///toolkit/components/enterprise/modules/ConsoleConnectionGuard.sys.mjs",
   initiateShutdown:
     "moz-src:///toolkit/components/enterprise/modules/EnterpriseCommon.sys.mjs",
   createEnterpriseLogger:
@@ -527,3 +529,11 @@ export const EnterpriseHandler = {
     return true;
   },
 };
+
+/** The "enterprise-network-loss-session-end" entry point (see components.conf). */
+export function registerNetworkLossSessionEndDelegate() {
+  lazy.ConsoleConnectionGuard.registerSessionEndDelegate({
+    endSession: lockSession =>
+      EnterpriseHandler.endSessionForNetworkLoss(lockSession),
+  });
+}

@@ -9,9 +9,6 @@ ChromeUtils.defineESModuleGetters(lazy, {
     "moz-src:///toolkit/components/enterprise/modules/ConsoleClient.sys.mjs",
   createEnterpriseLogger:
     "moz-src:///toolkit/components/enterprise/modules/EnterpriseCommon.sys.mjs",
-  EnterpriseHandler:
-    // eslint-disable-next-line mozilla/no-browser-refs-in-toolkit
-    "moz-src:///browser/components/enterprise/EnterpriseHandler.sys.mjs",
   hasActiveFirefoxSession: "chrome://felt/content/FeltProcessParent.sys.mjs",
   ForcedQuitHandler:
     "moz-src:///toolkit/components/enterprise/modules/ForcedQuitHandler.sys.mjs",
@@ -31,8 +28,33 @@ const GRACE_PERIOD_DEFAULT_MINUTES = 720;
 const MAX_TIMER_DELAY_MS = 2 ** 31 - 1;
 const GRACE_PERIOD_MAX_MINUTES = Math.floor(MAX_TIMER_DELAY_MS / (60 * 1000));
 const ENFORCEMENT_RETRY_MS = 5000;
+const MS_PER_MINUTE = 60 * 1000;
+// How long an outage must last before the user is told, so a brief blip does
+// not raise a bar. Capped at half the grace period so short grace periods are
+// still warned about.
+const WARNING_DEBOUNCE_MS = 5 * MS_PER_MINUTE;
+// How close to the deadline the warning escalates to the imminent phase.
+const IMMINENT_THRESHOLD_MS = 60 * MS_PER_MINUTE;
+// How soon to try again when no window or InfoBar slot could take the warning.
+const WARNING_RETRY_MS = MS_PER_MINUTE;
+// The application provides its warning UI through this category. An entry's
+// value is the URL of a module exporting registerNetworkLossWarningUI().
+// Nothing instantiates the category, so the module loads only when a warning
+// is due.
+const WARNING_UI_CATEGORY = "enterprise-network-loss-warning-ui";
+// The application ends the session through this category. An entry's value is
+// the URL of a module exporting registerNetworkLossSessionEndDelegate().
+const SESSION_END_CATEGORY = "enterprise-network-loss-session-end";
 const SHUTDOWN_TIMEOUT_MS = 5000;
 const REACHABILITY_PROBE_TIMEOUT_MS = 5000;
+
+/**
+ * The phases a warning UI delegate's showOrUpdate() can be asked to present.
+ */
+export const NetworkLossPhase = Object.freeze({
+  WARNING: "warning",
+  IMMINENT: "imminent",
+});
 
 /**
  * Fired once the session has been ended because the console stayed unreachable
@@ -56,6 +78,70 @@ export const ConsoleConnectionGuard = {
   _sessionEnded: false,
   _pendingSessionEnd: null,
   _shutdownWatchdog: null,
+  _warningUIDelegate: null,
+  _warningUILoaded: false,
+  _warningRetryPending: false,
+  _sessionEndDelegate: null,
+  _sessionEndLoaded: false,
+
+  /**
+   * Registers the application's warning UI, which the guard drives through the
+   * grace period. Firefox registers through WARNING_UI_CATEGORY; a delegate
+   * stays registered for the lifetime of the application.
+   *
+   * `showOrUpdate` receives the warning phase, the deadline, the remaining
+   * minutes and whether the deadline locks the session, and reports whether a
+   * warning is visible afterwards. `hide` must remove any warning even when
+   * `isVisible` returns false, and must tolerate repeated calls.
+   *
+   * @param {object} aDelegate - The warning UI delegate.
+   * @param {function(object): (boolean|Promise<boolean>)} aDelegate.showOrUpdate
+   * @param {function(): void} aDelegate.hide
+   * @param {function(): boolean} aDelegate.isVisible
+   * @returns {void}
+   */
+  registerWarningUIDelegate(aDelegate) {
+    if (
+      !aDelegate ||
+      typeof aDelegate.showOrUpdate !== "function" ||
+      typeof aDelegate.hide !== "function" ||
+      typeof aDelegate.isVisible !== "function"
+    ) {
+      throw new TypeError(
+        "The warning UI delegate must implement showOrUpdate(), hide(), and isVisible()."
+      );
+    }
+    if (this._warningUIDelegate) {
+      throw new Error("A warning UI delegate is already registered.");
+    }
+    this._warningUIDelegate = aDelegate;
+  },
+
+  /**
+   * Registers the application's way of ending the session once the grace
+   * period runs out. Firefox registers through SESSION_END_CATEGORY; a
+   * delegate stays registered for the lifetime of the application. Without
+   * one, the guard never starts a grace period it could not enforce.
+   *
+   * `endSession` receives whether to lock rather than sign out, and resolves
+   * to whether ending the session was initiated. The guard retries on false or
+   * a rejection, and forces a shutdown if one does not follow a success.
+   *
+   * @param {object} aDelegate - The session-end delegate.
+   * @param {function(boolean): Promise<boolean>} aDelegate.endSession
+   * @returns {void}
+   */
+  registerSessionEndDelegate(aDelegate) {
+    if (!aDelegate || typeof aDelegate.endSession !== "function") {
+      throw new TypeError(
+        "The session-end delegate must implement endSession()."
+      );
+    }
+    if (this._sessionEndDelegate) {
+      throw new Error("A session-end delegate is already registered.");
+    }
+    this._sessionEndDelegate = aDelegate;
+  },
 
   /**
    * Record that the console responded, clearing any in-progress grace period.
@@ -87,13 +173,15 @@ export const ConsoleConnectionGuard = {
       this._sessionEnded ||
       this._pendingSessionEnd ||
       this._outageStartedAt !== null ||
-      this._timer !== null
+      this._timer !== null ||
+      !this._appSessionEnd()
     ) {
       return;
     }
     this._outageStartedAt = Date.now();
     Services.prefs.addObserver(ENABLED_PREF, this);
     Services.prefs.addObserver(GRACE_PERIOD_PREF, this);
+    Services.prefs.addObserver(LOCKING_PREF, this);
     this._scheduleGraceTimer();
   },
 
@@ -107,11 +195,13 @@ export const ConsoleConnectionGuard = {
       }
     } else if (pref === GRACE_PERIOD_PREF) {
       this._scheduleGraceTimer();
+    } else if (pref === LOCKING_PREF) {
+      this._updateWarning();
     }
   },
 
-  _remainingGraceMs() {
-    const graceMs =
+  _graceMs() {
+    return (
       Math.min(
         Math.max(
           Services.prefs.getIntPref(
@@ -123,8 +213,16 @@ export const ConsoleConnectionGuard = {
         GRACE_PERIOD_MAX_MINUTES
       ) *
       60 *
-      1000;
-    return Math.max(0, graceMs - (Date.now() - this._outageStartedAt));
+      1000
+    );
+  },
+
+  _warningDebounceMs() {
+    return Math.min(WARNING_DEBOUNCE_MS, this._graceMs() / 2);
+  },
+
+  _remainingGraceMs() {
+    return Math.max(0, this._graceMs() - (Date.now() - this._outageStartedAt));
   },
 
   _scheduleGraceTimer() {
@@ -136,10 +234,158 @@ export const ConsoleConnectionGuard = {
     if (this._timer !== null) {
       lazy.clearTimeout(this._timer);
     }
-    this._timer = lazy.setTimeout(
-      () => this._verifyBeforeEnforcing(),
-      remainingMs
+    // Wake for whichever comes first, the next warning update or the deadline.
+    const nextWakeMs = Math.min(remainingMs, this._msUntilWarningUpdate());
+    this._timer = lazy.setTimeout(() => this._onGraceTimer(), nextWakeMs);
+  },
+
+  /**
+   * How long until the warning has something new to say: the end of the
+   * debounce the first bar waits out, the escalation to the imminent phase,
+   * then every minute the imminent bar counts off. Infinity once nothing is
+   * left to say before the deadline itself.
+   *
+   * @returns {number}
+   */
+  _msUntilWarningUpdate() {
+    const elapsedMs = Date.now() - this._outageStartedAt;
+    const debounceMs = this._warningDebounceMs();
+    if (elapsedMs < debounceMs) {
+      return debounceMs - elapsedMs;
+    }
+    const remainingMs = this._remainingGraceMs();
+    const untilImminentMs = remainingMs - IMMINENT_THRESHOLD_MS;
+    if (untilImminentMs > 0) {
+      return this._warningRetryPending
+        ? Math.min(untilImminentMs, WARNING_RETRY_MS)
+        : untilImminentMs;
+    }
+    // The imminent bar names the minutes left, so it goes stale unless the
+    // guard wakes for each one. The final minute cannot count any lower.
+    if (remainingMs <= MS_PER_MINUTE) {
+      return Infinity;
+    }
+    return remainingMs % MS_PER_MINUTE || MS_PER_MINUTE;
+  },
+
+  _onGraceTimer() {
+    if (this._remainingGraceMs() > 0) {
+      this._updateWarning();
+      this._scheduleGraceTimer();
+      return;
+    }
+    this._verifyBeforeEnforcing();
+  },
+
+  /**
+   * Brings the application's warning in line with the time left, raising it
+   * once the outage has outlasted the debounce.
+   *
+   * @returns {Promise<void>} Resolves once the delegate has applied the update.
+   */
+  async _updateWarning() {
+    const remainingMs = this._remainingGraceMs();
+    if (
+      this._outageStartedAt === null ||
+      this._sessionEnded ||
+      this._pendingSessionEnd ||
+      remainingMs <= 0 ||
+      Date.now() - this._outageStartedAt < this._warningDebounceMs()
+    ) {
+      return;
+    }
+    const delegate = this._appWarningUI();
+    if (!delegate) {
+      lazy.log.error(
+        "No network-loss warning UI is registered for this application; the user cannot be told the session is about to end."
+      );
+      return;
+    }
+    const shown = await delegate.showOrUpdate({
+      phase:
+        remainingMs <= IMMINENT_THRESHOLD_MS
+          ? NetworkLossPhase.IMMINENT
+          : NetworkLossPhase.WARNING,
+      endsAt: Date.now() + remainingMs,
+      minutes: Math.max(1, Math.ceil(remainingMs / MS_PER_MINUTE)),
+      willLock: Services.prefs.getBoolPref(LOCKING_PREF, false),
+    });
+    // The console can come back, or the deadline arrive, while the delegate is
+    // putting the bar up.
+    if (this._outageStartedAt === null || this._sessionEnded) {
+      if (shown) {
+        delegate.hide();
+      }
+      return;
+    }
+    // Otherwise a warning that could not be shown waits for the imminent
+    // phase, hours away with the default grace period.
+    this._warningRetryPending = !shown;
+    if (!shown && !this._pendingSessionEnd && this._remainingGraceMs() > 0) {
+      this._scheduleGraceTimer();
+    }
+  },
+
+  /**
+   * The application's warning UI, loading it from WARNING_UI_CATEGORY the first
+   * time one is asked for. Resolving it here rather than at startup keeps the
+   * delegate's module out of the browser's startup path, since most sessions
+   * never lose the console.
+   *
+   * @returns {object|null} The delegate, or null if the application has none.
+   */
+  _appWarningUI() {
+    if (this._warningUIDelegate || this._warningUILoaded) {
+      return this._warningUIDelegate;
+    }
+    this._warningUILoaded = true;
+    this._registerFromCategory(
+      WARNING_UI_CATEGORY,
+      "registerNetworkLossWarningUI"
     );
+    return this._warningUIDelegate;
+  },
+
+  /**
+   * The application's session-end delegate, loading it from
+   * SESSION_END_CATEGORY the first time one is asked for. Kept apart from the
+   * warning UI so that a warning that cannot load never stops enforcement.
+   *
+   * @returns {object|null} The delegate, or null if the application has none.
+   */
+  _appSessionEnd() {
+    if (this._sessionEndDelegate || this._sessionEndLoaded) {
+      return this._sessionEndDelegate;
+    }
+    this._sessionEndLoaded = true;
+    this._registerFromCategory(
+      SESSION_END_CATEGORY,
+      "registerNetworkLossSessionEndDelegate"
+    );
+    if (!this._sessionEndDelegate) {
+      lazy.log.error(
+        "No network-loss session-end delegate is registered for this application; the NetworkLoss policy cannot be enforced."
+      );
+    }
+    return this._sessionEndDelegate;
+  },
+
+  /**
+   * Calls the named registration function exported by each module listed in
+   * the category.
+   *
+   * @param {string} aCategory - The category listing the module URLs.
+   * @param {string} aEntryPoint - The registration function each module exports.
+   * @returns {void}
+   */
+  _registerFromCategory(aCategory, aEntryPoint) {
+    for (const { value: url } of Services.catMan.enumerateCategory(aCategory)) {
+      try {
+        ChromeUtils.importESModule(url)[aEntryPoint]();
+      } catch (e) {
+        lazy.log.error(`Failed to call ${aEntryPoint}() from ${url}:`, e);
+      }
+    }
   },
 
   _cancelVerification() {
@@ -216,6 +462,8 @@ export const ConsoleConnectionGuard = {
 
   _clearOutage() {
     this._cancelVerification();
+    this._warningRetryPending = false;
+    this._warningUIDelegate?.hide();
     if (this._timer !== null) {
       lazy.clearTimeout(this._timer);
       this._timer = null;
@@ -223,6 +471,7 @@ export const ConsoleConnectionGuard = {
     if (this._outageStartedAt !== null) {
       Services.prefs.removeObserver(ENABLED_PREF, this);
       Services.prefs.removeObserver(GRACE_PERIOD_PREF, this);
+      Services.prefs.removeObserver(LOCKING_PREF, this);
       this._outageStartedAt = null;
     }
   },
@@ -268,7 +517,10 @@ export const ConsoleConnectionGuard = {
     if (this._pendingSessionEnd) {
       return this._pendingSessionEnd;
     }
-    if (!Services.prefs.getBoolPref(ENABLED_PREF, false)) {
+    if (
+      !Services.prefs.getBoolPref(ENABLED_PREF, false) ||
+      !this._appSessionEnd()
+    ) {
       this._clearOutage();
       return false;
     }
@@ -285,7 +537,7 @@ export const ConsoleConnectionGuard = {
     this._pendingSessionEnd = (async () => {
       try {
         this._sessionEnded =
-          await lazy.EnterpriseHandler.endSessionForNetworkLoss(lockSession);
+          await this._sessionEndDelegate.endSession(lockSession);
       } catch (e) {
         lazy.log.error("Failed to end the session on network loss.", e);
         return false;
