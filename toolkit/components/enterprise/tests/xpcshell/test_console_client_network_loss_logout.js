@@ -34,6 +34,8 @@ const { TestUtils } = ChromeUtils.importESModule(
 );
 
 const ENABLED_PREF = "enterprise.network_loss.enabled";
+const GRACE_PERIOD_PREF = "enterprise.network_loss.grace_period_minutes";
+const LOCKING_PREF = "enterprise.locking.network_loss";
 
 // Network-loss enforcement ships disabled, so the guard would never arm. These
 // tests drive it directly, so turn it on for the whole file.
@@ -388,6 +390,230 @@ add_task(async function test_network_loss_logout_does_not_wait_for_server() {
     cancelStub.restore();
     cpmmStub.restore();
     feltStub.restore();
+  }
+});
+
+function stubFeltBrowser(sandbox) {
+  sandbox.stub(Services, "felt").get(() => ({
+    isFeltUI: () => false,
+    isFeltBrowser: () => true,
+  }));
+}
+
+add_task(async function test_network_loss_warning_ui_registration() {
+  Assert.throws(
+    () => ConsoleConnectionGuard.registerWarningUIDelegate({ hide: () => {} }),
+    /must implement/,
+    "A delegate missing part of the contract is refused."
+  );
+  const delegate = {
+    showOrUpdate: () => true,
+    hide: () => {},
+    isVisible: () => false,
+  };
+  try {
+    ConsoleConnectionGuard.registerWarningUIDelegate(delegate);
+    Assert.throws(
+      () => ConsoleConnectionGuard.registerWarningUIDelegate(delegate),
+      /already registered/,
+      "Only one delegate can be registered."
+    );
+  } finally {
+    ConsoleConnectionGuard._warningUIDelegate = null;
+  }
+});
+
+add_task(async function test_network_loss_warning_phases() {
+  const sandbox = sinon.createSandbox();
+  stubFeltBrowser(sandbox);
+  const calls = [];
+  // Pin the grace period: the phases are defined relative to it, and the
+  // shipped default is not the subject here.
+  const wasLocked = Services.prefs.prefIsLocked(GRACE_PERIOD_PREF);
+  const hadUserValue = Services.prefs.prefHasUserValue(GRACE_PERIOD_PREF);
+  const originalGrace = hadUserValue
+    ? Services.prefs.getIntPref(GRACE_PERIOD_PREF)
+    : null;
+  if (wasLocked) {
+    Services.prefs.unlockPref(GRACE_PERIOD_PREF);
+  }
+  Services.prefs.setIntPref(GRACE_PERIOD_PREF, 180);
+  ConsoleConnectionGuard.reset();
+  ConsoleConnectionGuard._warningUIDelegate = {
+    showOrUpdate: details => {
+      calls.push(details);
+      return true;
+    },
+    hide: () => calls.push("hide"),
+    isVisible: () => true,
+  };
+
+  try {
+    ConsoleConnectionGuard.recordUnreachable();
+    await ConsoleConnectionGuard._updateWarning();
+    Assert.deepEqual(
+      calls,
+      [],
+      "An outage shorter than the debounce raises no warning."
+    );
+
+    ConsoleConnectionGuard._outageStartedAt -= 5 * 60 * 1000;
+    await ConsoleConnectionGuard._updateWarning();
+    Assert.equal(calls.length, 1, "Outlasting the debounce raises a warning.");
+    Assert.equal(calls[0].phase, "warning", "It starts in the warning phase.");
+    Assert.equal(
+      calls[0].willLock,
+      false,
+      "The warning carries the signout action the pref defaults to."
+    );
+    Assert.greater(calls[0].endsAt, Date.now(), "The deadline is still ahead.");
+
+    // Inside the last hour the warning escalates.
+    ConsoleConnectionGuard._outageStartedAt -=
+      ConsoleConnectionGuard._remainingGraceMs() - 30 * 60 * 1000;
+    await ConsoleConnectionGuard._updateWarning();
+    Assert.equal(calls.length, 2, "Escalating updates the warning.");
+    Assert.equal(calls[1].phase, "imminent", "The final hour is imminent.");
+    Assert.lessOrEqual(calls[1].minutes, 30, "It counts the minutes left.");
+
+    // The imminent bar names the minutes left, so the guard has to keep waking
+    // for each one instead of sleeping through to the deadline.
+    Assert.lessOrEqual(
+      ConsoleConnectionGuard._msUntilWarningUpdate(),
+      60 * 1000,
+      "An imminent warning wakes again within the minute."
+    );
+    ConsoleConnectionGuard._outageStartedAt -= 5 * 60 * 1000;
+    await ConsoleConnectionGuard._updateWarning();
+    Assert.equal(calls.length, 3, "Counting down updates the warning.");
+    Assert.less(
+      calls[2].minutes,
+      calls[1].minutes,
+      "Each update names fewer minutes."
+    );
+
+    // The last minute cannot count any lower, so only the deadline is left.
+    ConsoleConnectionGuard._outageStartedAt -=
+      ConsoleConnectionGuard._remainingGraceMs() - 30 * 1000;
+    Assert.equal(
+      ConsoleConnectionGuard._msUntilWarningUpdate(),
+      Infinity,
+      "The final minute waits for the deadline."
+    );
+
+    ConsoleConnectionGuard.recordReachable();
+    Assert.equal(calls.at(-1), "hide", "Recovering takes the warning down.");
+
+    // Past the deadline there is nothing left to warn about.
+    ConsoleConnectionGuard.recordUnreachable();
+    ConsoleConnectionGuard._outageStartedAt -=
+      ConsoleConnectionGuard._remainingGraceMs();
+    const settled = calls.length;
+    await ConsoleConnectionGuard._updateWarning();
+    Assert.equal(
+      calls.length,
+      settled,
+      "An expired grace period warns no one."
+    );
+  } finally {
+    ConsoleConnectionGuard.reset();
+    ConsoleConnectionGuard._warningUIDelegate = null;
+    if (hadUserValue) {
+      Services.prefs.setIntPref(GRACE_PERIOD_PREF, originalGrace);
+    } else {
+      Services.prefs.clearUserPref(GRACE_PERIOD_PREF);
+    }
+    if (wasLocked) {
+      Services.prefs.lockPref(GRACE_PERIOD_PREF);
+    }
+    sandbox.restore();
+  }
+});
+
+add_task(async function test_network_loss_warning_follows_action_changes() {
+  const sandbox = sinon.createSandbox();
+  stubFeltBrowser(sandbox);
+  const calls = [];
+  const wasLocked = Services.prefs.prefIsLocked(LOCKING_PREF);
+  if (wasLocked) {
+    Services.prefs.unlockPref(LOCKING_PREF);
+  }
+  Services.prefs.setBoolPref(LOCKING_PREF, false);
+  ConsoleConnectionGuard.reset();
+  ConsoleConnectionGuard._warningUIDelegate = {
+    showOrUpdate: details => {
+      calls.push(details);
+      return true;
+    },
+    hide: () => {},
+    isVisible: () => true,
+  };
+
+  try {
+    ConsoleConnectionGuard.recordUnreachable();
+    ConsoleConnectionGuard._outageStartedAt -= 5 * 60 * 1000;
+    await ConsoleConnectionGuard._updateWarning();
+    Assert.equal(calls.length, 1, "The warning is up.");
+    Assert.equal(calls[0].willLock, false, "It warns of a signout.");
+
+    Services.prefs.setBoolPref(LOCKING_PREF, true);
+    await TestUtils.waitForCondition(
+      () => calls.length === 2,
+      "Changing the action refreshes the warning."
+    );
+    Assert.equal(calls[1].willLock, true, "It now warns of a lock.");
+
+    ConsoleConnectionGuard.recordReachable();
+    Services.prefs.setBoolPref(LOCKING_PREF, false);
+    await TestUtils.waitForTick();
+    Assert.equal(
+      calls.length,
+      2,
+      "Without an outage, changing the action raises no warning."
+    );
+  } finally {
+    ConsoleConnectionGuard.reset();
+    ConsoleConnectionGuard._warningUIDelegate = null;
+    Services.prefs.clearUserPref(LOCKING_PREF);
+    if (wasLocked) {
+      Services.prefs.lockPref(LOCKING_PREF);
+    }
+    sandbox.restore();
+  }
+});
+
+add_task(async function test_network_loss_warning_retries_until_shown() {
+  const sandbox = sinon.createSandbox();
+  stubFeltBrowser(sandbox);
+  let canShow = false;
+  ConsoleConnectionGuard.reset();
+  ConsoleConnectionGuard._warningUIDelegate = {
+    showOrUpdate: () => canShow,
+    hide: () => {},
+    isVisible: () => canShow,
+  };
+
+  try {
+    ConsoleConnectionGuard.recordUnreachable();
+    ConsoleConnectionGuard._outageStartedAt -= 5 * 60 * 1000;
+    await ConsoleConnectionGuard._updateWarning();
+    Assert.lessOrEqual(
+      ConsoleConnectionGuard._msUntilWarningUpdate(),
+      60 * 1000,
+      "A warning no window could take is retried within the minute."
+    );
+
+    canShow = true;
+    await ConsoleConnectionGuard._updateWarning();
+    Assert.greater(
+      ConsoleConnectionGuard._msUntilWarningUpdate(),
+      60 * 1000,
+      "Once shown, the warning waits for the imminent phase."
+    );
+  } finally {
+    ConsoleConnectionGuard.reset();
+    ConsoleConnectionGuard._warningUIDelegate = null;
+    sandbox.restore();
   }
 });
 
