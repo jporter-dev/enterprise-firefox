@@ -49,7 +49,6 @@ export const FeltStorage = {
 
   async endSession() {
     delete this._feltStorage.data.activeSessionEmail;
-    delete this._feltStorage.data.pendingURLs;
     await this._feltStorage._save();
   },
 
@@ -214,21 +213,32 @@ export const FeltStorage = {
   },
 
   /**
-   * Stores the queued external URLs so an app restart can carry them over.
-   * Encryption is owned here so felt.json can never hold the plaintext
-   * addresses, matching how the locked-session token is stored.
+   * Encrypts the queued external URLs for storePendingURLs(). Encryption is
+   * owned here so felt.json can never hold the plaintext addresses, matching
+   * how the locked-session token is stored.
    *
    * @param {Array<object>} urls The pending URL payloads.
-   * @returns {Promise<void>}
+   * @returns {Promise<string>} The ciphertext to store.
    */
-  async setPendingURLs(urls) {
-    const ciphertext = await lazy.OSKeyStore.encrypt(
+  encryptPendingURLs(urls) {
+    return lazy.OSKeyStore.encrypt(
       JSON.stringify({
         version: PENDING_URLS_VERSION,
         createdAt: Date.now(),
         urls,
       })
     );
+  },
+
+  /**
+   * Stores queued external URLs so an app restart can carry them over. Kept
+   * apart from encryptPendingURLs() so a caller can drop a result that went
+   * stale while the keystore was answering.
+   *
+   * @param {string} ciphertext The value from encryptPendingURLs().
+   * @returns {Promise<void>}
+   */
+  async storePendingURLs(ciphertext) {
     this._feltStorage.data.pendingURLs = ciphertext;
     await this._feltStorage._save();
   },
@@ -239,7 +249,10 @@ export const FeltStorage = {
    * @returns {Promise<void>}
    */
   async clearPendingURLs() {
-    if (this._feltStorage.data?.pendingURLs === undefined) {
+    if (
+      !this._feltStorage?.dataReady ||
+      this._feltStorage.data.pendingURLs === undefined
+    ) {
       return;
     }
     delete this._feltStorage.data.pendingURLs;
