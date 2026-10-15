@@ -20,6 +20,13 @@ ChromeUtils.defineESModuleGetters(lazy, {
   setTimeout: "resource://gre/modules/Timer.sys.mjs",
 });
 
+ChromeUtils.defineLazyGetter(lazy, "legacyPendingURLsPath", () =>
+  PathUtils.join(
+    Services.dirsvc.get("ProfD", Ci.nsIFile).path,
+    "pendingURLs.json"
+  )
+);
+
 // The keystore may stop answering once shutdown is under way, so a restart
 // only waits this long for an in-flight write before carrying on.
 const SHUTDOWN_FLUSH_TIMEOUT_MS = 5000;
@@ -79,6 +86,7 @@ export const gFeltPendingURLs = {
   _ready: false,
   _initPromise: null,
   _writes: Promise.resolve(),
+  _writeQueued: false,
 
   async init() {
     if (this._ready) {
@@ -99,6 +107,9 @@ export const gFeltPendingURLs = {
 
   async _restore() {
     const queue = this._pendingURLs;
+    // Builds before bug 2073035 kept the queue as plaintext in the scratch
+    // profile, which outlives upgrades. It is removed unread.
+    await IOUtils.remove(lazy.legacyPendingURLsPath, { ignoreAbsent: true });
     await lazy.FeltStorage.init();
     if (!Services.startup.wasRestarted) {
       await lazy.FeltStorage.clearPendingURLs();
@@ -123,22 +134,27 @@ export const gFeltPendingURLs = {
    * slower earlier one cannot land after a later one and resurrect URLs that
    * have since been opened. They also wait for init(), so a URL that arrives
    * on the command line before the restore has run cannot overwrite the
-   * stored queue before it has been read.
+   * stored queue before it has been read. A write that has not started yet
+   * reads the queue when it does, so later updates join it rather than each
+   * encrypting and saving the whole queue again.
    *
    * @returns {Promise<void>} Resolves once this update has been written.
    */
   _persist() {
-    if (!Services.felt?.isFeltUI()) {
+    if (!Services.felt?.isFeltUI() || this._writeQueued) {
       return this._writes;
     }
+    this._writeQueued = true;
     this._writes = this._writes
       .then(() => this.init())
-      .then(() =>
-        this._pendingURLs.length
+      .then(() => {
+        this._writeQueued = false;
+        return this._pendingURLs.length
           ? lazy.FeltStorage.setPendingURLs(this._pendingURLs)
-          : lazy.FeltStorage.clearPendingURLs()
-      )
+          : lazy.FeltStorage.clearPendingURLs();
+      })
       .catch(error => {
+        this._writeQueued = false;
         console.error("Failed to store pending Felt URLs", error);
       });
     return this._writes;

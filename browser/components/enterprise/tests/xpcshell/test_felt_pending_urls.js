@@ -58,6 +58,30 @@ function holdDecrypt() {
   };
 }
 
+/**
+ * Holds the next encrypt until it is released.
+ *
+ * @returns {{started: Promise<void>, release: Function}} started resolves once
+ *   the encrypt has been called; release lets it finish.
+ */
+function holdEncrypt() {
+  let release, markStarted;
+  const gate = new Promise(resolve => (release = resolve));
+  const started = new Promise(resolve => (markStarted = resolve));
+  OSKeyStore.encrypt.callsFake(async plaintext => {
+    markStarted();
+    await gate;
+    return fakeEncrypt(plaintext);
+  });
+  return {
+    started,
+    release() {
+      release();
+      OSKeyStore.encrypt.callsFake(fakeEncrypt);
+    },
+  };
+}
+
 function url(spec, disposition) {
   return {
     url: spec,
@@ -244,6 +268,24 @@ add_task(async function test_restored_urls_precede_newly_queued_ones() {
   );
 });
 
+add_task(async function test_legacy_plaintext_file_is_removed_unread() {
+  const legacyFile = PathUtils.join(PathUtils.profileDir, "pendingURLs.json");
+  await relaunch({ restarted: false });
+  await IOUtils.writeJSON(legacyFile, {
+    pendingURLs: [url("https://example.com/legacy")],
+  });
+
+  Assert.deepEqual(
+    await relaunch({ restarted: true }),
+    [],
+    "URLs from the plaintext file an older build left behind are not restored"
+  );
+  Assert.ok(
+    !(await IOUtils.exists(legacyFile)),
+    "and the file is removed from the scratch profile"
+  );
+});
+
 add_task(async function test_clear_during_restore_discards_restored_urls() {
   await relaunch({ restarted: false });
   await queue(url("https://example.com/previous-session"));
@@ -401,17 +443,73 @@ add_task(async function test_signout_drops_the_stored_queue() {
   await relaunch({ restarted: false });
   await queue(url("https://example.com/signed-out"));
 
+  lazy.gFeltPendingURLs.clear();
   await lazy.FeltStorage.endSession();
+  await lazy.gFeltPendingURLs._writes;
 
   Assert.equal(
     storedQueue(),
     undefined,
-    "ending the session removes the stored queue"
+    "signing out removes the stored queue"
   );
   Assert.deepEqual(
     await relaunch({ restarted: true }),
     [],
     "URLs queued by the session that ended are not reopened"
+  );
+});
+
+add_task(async function test_signout_during_encryption_drops_the_queue() {
+  await relaunch({ restarted: false });
+  const { started, release } = holdEncrypt();
+  lazy.gFeltPendingURLs.push(url("https://example.com/mid-encrypt"));
+  await started;
+
+  lazy.gFeltPendingURLs.clear();
+  await lazy.FeltStorage.endSession();
+  release();
+  await lazy.gFeltPendingURLs._writes;
+
+  Assert.equal(
+    storedQueue(),
+    undefined,
+    "a write that finishes after signout does not bring the queue back"
+  );
+});
+
+add_task(async function test_ending_a_session_keeps_the_stored_queue() {
+  await relaunch({ restarted: false });
+  await queue(url("https://example.com/failed-unlock"));
+
+  // A failed unlock rolls back the session it began without signing out.
+  await lazy.FeltStorage.endSession();
+
+  Assert.deepEqual(
+    (await relaunch({ restarted: true })).map(entry => entry.url),
+    ["https://example.com/failed-unlock"],
+    "a restart after a failed unlock still carries the queue over"
+  );
+});
+
+add_task(async function test_a_burst_of_pushes_is_written_once() {
+  await relaunch({ restarted: false });
+  OSKeyStore.encrypt.resetHistory();
+
+  await queue(
+    url("https://example.com/1"),
+    url("https://example.com/2"),
+    url("https://example.com/3")
+  );
+
+  Assert.equal(
+    OSKeyStore.encrypt.callCount,
+    1,
+    "pushes made before the write starts share a single write"
+  );
+  Assert.deepEqual(
+    storedURLs(),
+    ["https://example.com/1", "https://example.com/2", "https://example.com/3"],
+    "and that write holds all of them"
   );
 });
 

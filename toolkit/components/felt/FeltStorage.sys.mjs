@@ -49,7 +49,6 @@ export const FeltStorage = {
 
   async endSession() {
     delete this._feltStorage.data.activeSessionEmail;
-    delete this._feltStorage.data.pendingURLs;
     await this._feltStorage._save();
   },
 
