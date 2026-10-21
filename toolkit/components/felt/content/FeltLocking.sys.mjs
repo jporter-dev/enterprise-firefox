@@ -23,7 +23,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
 if (lazy.isBuildAppBrowser()) {
   ChromeUtils.defineESModuleGetters(lazy, {
     // eslint-disable-next-line mozilla/no-browser-refs-in-toolkit
-    gFeltPendingURLs: "resource:///modules/FeltURLHandler.sys.mjs",
+    gFeltPendingURLs: "moz-src:///browser/components/FeltURLHandler.sys.mjs",
   });
 }
 

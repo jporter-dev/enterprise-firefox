@@ -17,7 +17,7 @@ class FeltStartsBrowserExternalLink(BaseBrowserExternalLink):
     def felt_json_path(self):
         self._driver.set_context("chrome")
         return self._driver.execute_script(
-            "return ChromeUtils.importESModule('resource://gre/modules/enterprise/FeltStorage.sys.mjs').FeltStorage.FELT_FILE_PATH;"
+            "return ChromeUtils.importESModule('moz-src:///toolkit/components/felt/FeltStorage.sys.mjs').FeltStorage.FELT_FILE_PATH;"
         )
 
     def has_stored_queue(self, felt_json):
@@ -35,7 +35,7 @@ class FeltStartsBrowserExternalLink(BaseBrowserExternalLink):
         return self._driver.execute_async_script(
             """
             const done = arguments[arguments.length - 1];
-            const { gFeltPendingURLs } = ChromeUtils.importESModule('resource:///modules/FeltURLHandler.sys.mjs');
+            const { gFeltPendingURLs } = ChromeUtils.importESModule('moz-src:///browser/components/FeltURLHandler.sys.mjs');
             gFeltPendingURLs.init().then(() => done([...gFeltPendingURLs]));
             """
         )
@@ -44,7 +44,7 @@ class FeltStartsBrowserExternalLink(BaseBrowserExternalLink):
         self._driver.set_context("chrome")
         self._wait.until(
             lambda mn: mn.execute_script(
-                "return ChromeUtils.importESModule('resource:///modules/FeltURLHandler.sys.mjs').gFeltPendingURLs.length === 1;"
+                "return ChromeUtils.importESModule('moz-src:///browser/components/FeltURLHandler.sys.mjs').gFeltPendingURLs.length === 1;"
             )
         )
 

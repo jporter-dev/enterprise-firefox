@@ -6,7 +6,9 @@
 do_get_profile();
 
 const { FELT_OPEN_WINDOW_DISPOSITION, sanitizeFeltURLPayload } =
-  ChromeUtils.importESModule("resource:///modules/FeltURLHandler.sys.mjs");
+  ChromeUtils.importESModule(
+    "moz-src:///browser/components/FeltURLHandler.sys.mjs"
+  );
 
 add_task(function test_rejects_disallowed_and_invalid_urls() {
   for (const url of [
@@ -48,7 +50,7 @@ add_task(function test_rejects_disallowed_and_invalid_urls() {
 
 add_task(async function test_external_window_arguments() {
   const { Felt } = ChromeUtils.importESModule(
-    "resource://gre/modules/enterprise/Felt.sys.mjs"
+    "moz-src:///toolkit/components/felt/Felt.sys.mjs"
   );
   const { BrowserWindowTracker } = ChromeUtils.importESModule(
     "resource:///modules/BrowserWindowTracker.sys.mjs"
@@ -110,7 +112,7 @@ add_task(async function test_external_window_arguments() {
 
 add_task(async function test_external_tab_options() {
   const { Felt } = ChromeUtils.importESModule(
-    "resource://gre/modules/enterprise/Felt.sys.mjs"
+    "moz-src:///toolkit/components/felt/Felt.sys.mjs"
   );
   const { BrowserWindowTracker } = ChromeUtils.importESModule(
     "resource:///modules/BrowserWindowTracker.sys.mjs"

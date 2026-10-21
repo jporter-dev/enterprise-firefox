@@ -28,8 +28,9 @@ if (lazy.isBuildAppBrowser()) {
     FELT_OPEN_WINDOW_DISPOSITION:
       // eslint-disable-next-line mozilla/no-browser-refs-in-toolkit
       "moz-src:///browser/components/FeltURLHandler.sys.mjs",
-    // eslint-disable-next-line mozilla/no-browser-refs-in-toolkit
-    sanitizeFeltURLPayload: "resource:///modules/FeltURLHandler.sys.mjs",
+    sanitizeFeltURLPayload:
+      // eslint-disable-next-line mozilla/no-browser-refs-in-toolkit
+      "moz-src:///browser/components/FeltURLHandler.sys.mjs",
     // eslint-disable-next-line mozilla/no-browser-refs-in-toolkit
     BrowserWindowTracker: "resource:///modules/BrowserWindowTracker.sys.mjs",
   });

@@ -11,9 +11,10 @@
 // before makeFakeAppDir() runs below.
 const lazy = {};
 ChromeUtils.defineESModuleGetters(lazy, {
-  FeltStorage: "resource://gre/modules/enterprise/FeltStorage.sys.mjs",
-  FELT_OPEN_WINDOW_DISPOSITION: "resource:///modules/FeltURLHandler.sys.mjs",
-  gFeltPendingURLs: "resource:///modules/FeltURLHandler.sys.mjs",
+  FeltStorage: "moz-src:///toolkit/components/felt/FeltStorage.sys.mjs",
+  FELT_OPEN_WINDOW_DISPOSITION:
+    "moz-src:///browser/components/FeltURLHandler.sys.mjs",
+  gFeltPendingURLs: "moz-src:///browser/components/FeltURLHandler.sys.mjs",
 });
 
 const { makeFakeAppDir } = ChromeUtils.importESModule(

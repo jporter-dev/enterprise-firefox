@@ -15,7 +15,7 @@ ChromeUtils.defineLazyGetter(
 );
 
 ChromeUtils.defineESModuleGetters(lazy, {
-  FeltStorage: "resource://gre/modules/enterprise/FeltStorage.sys.mjs",
+  FeltStorage: "moz-src:///toolkit/components/felt/FeltStorage.sys.mjs",
 });
 
 ChromeUtils.defineLazyGetter(lazy, "legacyPendingURLsPath", () =>
