@@ -8,10 +8,23 @@ do_get_profile();
 const { FELT_OPEN_WINDOW_DISPOSITION, sanitizeFeltURLPayload } =
   ChromeUtils.importESModule("resource:///modules/FeltURLHandler.sys.mjs");
 
-add_task(function test_rejects_chrome_and_invalid_urls() {
+add_task(function test_rejects_disallowed_and_invalid_urls() {
   for (const url of [
     "chrome://browser/content/browser.xhtml",
     "CHROME://browser/content/browser.xhtml",
+    "about:config",
+    "about:welcome",
+    "ABOUT:config",
+    "javascript:alert(1)",
+    "JavaScript:alert(1)",
+    "data:text/html,<script>alert(1)</script>",
+    "blob:https://example.com/id",
+    "view-source:https://example.com/",
+    "resource://gre/modules/AppConstants.sys.mjs",
+    "moz-extension://00000000-0000-0000-0000-000000000000/page.html",
+    "ftp://example.com/file",
+    "mailto:someone@example.com",
+    "example.com",
     "http://[",
     42,
     false,
@@ -76,14 +89,20 @@ add_task(async function test_external_window_arguments() {
         disposition === FELT_OPEN_WINDOW_DISPOSITION.NEW_PRIVATE_WINDOW
       );
     }
-    opened = null;
-    await observer._handleFeltExternalUrl(
-      JSON.stringify({
-        url: "chrome://browser/content/browser.xhtml",
-        disposition: FELT_OPEN_WINDOW_DISPOSITION.NEW_WINDOW,
-      })
-    );
-    Assert.equal(opened, null, "A chrome URL never reaches the window opener");
+    for (const url of [
+      "chrome://browser/content/browser.xhtml",
+      "about:config",
+      "javascript:alert(1)",
+    ]) {
+      opened = null;
+      await observer._handleFeltExternalUrl(
+        JSON.stringify({
+          url,
+          disposition: FELT_OPEN_WINDOW_DISPOSITION.NEW_WINDOW,
+        })
+      );
+      Assert.equal(opened, null, `${url} never reaches the window opener`);
+    }
   } finally {
     BrowserWindowTracker.openWindow = originalOpenWindow;
   }
@@ -123,13 +142,12 @@ add_task(async function test_external_tab_options() {
   }
 });
 
-add_task(function test_preserves_external_urls() {
+add_task(function test_preserves_allowed_urls() {
   for (const url of [
     "https://example.com/a|https://other.example/b",
-    "about:welcome",
-    "javascript:alert(1)",
-    "data:text/plain,hello",
-    "blob:https://example.com/id",
+    "http://example.com/",
+    "HTTPS://EXAMPLE.COM/",
+    "file:///tmp/page.html",
     "",
   ]) {
     for (const disposition of Object.values(FELT_OPEN_WINDOW_DISPOSITION)) {

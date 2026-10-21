@@ -98,7 +98,7 @@ class FeltStartsBrowserExternalLink(BaseBrowserExternalLink):
         self.check_no_external_link_tab()
 
     def test_browser_pending_external_link(self):
-        self._external_link = "about:license"
+        self._external_link = f"http://localhost:{self.console_port}/ping?pending"
         felt_json = self.felt_json_path()
 
         assert not self.has_stored_queue(felt_json), (
@@ -132,12 +132,15 @@ class FeltStartsBrowserExternalLink(BaseBrowserExternalLink):
         # test_felt_pending_urls.js covers rejecting it on a restart too.
         with open(felt_json) as stored:
             data = json.loads(stored.read())
+        planted = [
+            f"http://localhost:{self.console_port}/ping?planted-1",
+            f"http://localhost:{self.console_port}/ping?planted-2",
+        ]
         data["pendingURLs"] = {
             "version": 1,
             "createdAt": int(time.time() * 1000),
             "ciphertext": json.dumps([
-                {"url": "about:buildconfig", "disposition": 0},
-                {"url": "about:logo", "disposition": 0},
+                {"url": url, "disposition": 0} for url in planted
             ]),
         }
         with open(felt_json, "w") as stored:
@@ -164,4 +167,4 @@ class FeltStartsBrowserExternalLink(BaseBrowserExternalLink):
         self.third_party_open_external_link()
         self.check_has_external_link_tab()
 
-        self.check_planted_urls_not_opened()
+        self.check_planted_urls_not_opened(planted)

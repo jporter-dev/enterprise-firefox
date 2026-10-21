@@ -37,17 +37,19 @@ export const FELT_OPEN_WINDOW_DISPOSITION = {
   NEW_PRIVATE_WINDOW: 2,
 };
 
+const ALLOWED_EXTERNAL_SCHEMES = new Set(["http", "https", "file"]);
+
 /**
- * Parses an external URL payload and rejects chrome: URLs, matching
- * shouldLoadURI in BrowserContentHandler.sys.mjs, which is Firefox's own policy
- * for externally supplied URLs. Callers load these with fromExternal: true,
- * which stops a principal-inheriting URL from picking up the current
- * document's principal.
+ * Parses an external URL payload and rejects any URL whose scheme is not in
+ * ALLOWED_EXTERNAL_SCHEMES. Callers load these with fromExternal: true, which
+ * stops a principal-inheriting URL from picking up the current document's
+ * principal.
  *
  * @param {object} payload
  *   External URL and optional window disposition.
  * @returns {{url: string, disposition: number}|null}
- *   The payload with defaults, or null if the URL is invalid or uses chrome:.
+ *   The payload with defaults, or null if the URL is invalid or its scheme is
+ *   not allowed. An empty URL is kept, and opens the default page.
  */
 export function sanitizeFeltURLPayload(payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
@@ -59,7 +61,7 @@ export function sanitizeFeltURLPayload(payload) {
   }
   if (url) {
     try {
-      if (Services.io.newURI(url).schemeIs("chrome")) {
+      if (!ALLOWED_EXTERNAL_SCHEMES.has(Services.io.newURI(url).scheme)) {
         return null;
       }
     } catch {
