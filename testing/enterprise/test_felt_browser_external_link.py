@@ -6,22 +6,18 @@
 import json
 import os
 import sys
+import time
 
 sys.path.append(os.path.dirname(__file__))
 
 from felt_external_link import BaseBrowserExternalLink
-
-FELT_STORAGE = 'ChromeUtils.importESModule("resource://gre/modules/enterprise/FeltStorage.sys.mjs")'
-FELT_URL_HANDLER = (
-    'ChromeUtils.importESModule("resource:///modules/FeltURLHandler.sys.mjs")'
-)
 
 
 class FeltStartsBrowserExternalLink(BaseBrowserExternalLink):
     def felt_json_path(self):
         self._driver.set_context("chrome")
         return self._driver.execute_script(
-            f"return {FELT_STORAGE}.FeltStorage.FELT_FILE_PATH;"
+            "return ChromeUtils.importESModule('resource://gre/modules/enterprise/FeltStorage.sys.mjs').FeltStorage.FELT_FILE_PATH;"
         )
 
     def has_stored_queue(self, felt_json):
@@ -37,9 +33,9 @@ class FeltStartsBrowserExternalLink(BaseBrowserExternalLink):
         """The queue as the launch sees it, once anything stored is restored."""
         self._driver.set_context("chrome")
         return self._driver.execute_async_script(
-            f"""
+            """
             const done = arguments[arguments.length - 1];
-            const {{ gFeltPendingURLs }} = {FELT_URL_HANDLER};
+            const { gFeltPendingURLs } = ChromeUtils.importESModule('resource:///modules/FeltURLHandler.sys.mjs');
             gFeltPendingURLs.init().then(() => done([...gFeltPendingURLs]));
             """
         )
@@ -48,7 +44,7 @@ class FeltStartsBrowserExternalLink(BaseBrowserExternalLink):
         self._driver.set_context("chrome")
         self._wait.until(
             lambda mn: mn.execute_script(
-                f"return {FELT_URL_HANDLER}.gFeltPendingURLs.length === 1;"
+                "return ChromeUtils.importESModule('resource:///modules/FeltURLHandler.sys.mjs').gFeltPendingURLs.length === 1;"
             )
         )
 
@@ -136,14 +132,14 @@ class FeltStartsBrowserExternalLink(BaseBrowserExternalLink):
         # test_felt_pending_urls.js covers rejecting it on a restart too.
         with open(felt_json) as stored:
             data = json.loads(stored.read())
-        data["pendingURLs"] = json.dumps({
+        data["pendingURLs"] = {
             "version": 1,
-            "createdAt": 0,
-            "urls": [
+            "createdAt": int(time.time() * 1000),
+            "ciphertext": json.dumps([
                 {"url": "about:buildconfig", "disposition": 0},
                 {"url": "about:logo", "disposition": 0},
-            ],
-        })
+            ]),
+        }
         with open(felt_json, "w") as stored:
             stored.write(json.dumps(data))
         self._logger.info(f"Planted an unencrypted queue in {felt_json}")

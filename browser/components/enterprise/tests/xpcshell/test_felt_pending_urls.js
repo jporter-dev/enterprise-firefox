@@ -27,6 +27,7 @@ const { sinon } = ChromeUtils.importESModule(
 );
 
 const MAX_AGE_MS = 30 * 60 * 1000;
+const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
 
 async function fakeEncrypt(plaintext) {
   return `enc(${plaintext})`;
@@ -98,26 +99,59 @@ function plantStoredQueue(value) {
   lazy.FeltStorage._feltStorage.data.pendingURLs = value;
 }
 
-/** The URLs inside the stored value, as the fake keystore would decrypt it. */
-function storedURLs() {
-  return JSON.parse(storedQueue().replace(/^enc\((.*)\)$/s, "$1")).urls.map(
-    entry => entry.url
-  );
+/**
+ * A stored record as storePendingURLs() would write it, with any field
+ * overridable.
+ *
+ * @param {object} [fields]
+ * @param {Array<object>} [fields.urls] Encrypted into the ciphertext.
+ * @returns {object}
+ */
+function record({
+  urls = [url("https://example.com/planted")],
+  ...fields
+} = {}) {
+  return {
+    version: 1,
+    createdAt: Date.now(),
+    ciphertext: `enc(${JSON.stringify(urls)})`,
+    ...fields,
+  };
 }
 
-async function queue(...payloads) {
+/** The URLs inside the stored value, as the fake keystore would decrypt it. */
+function storedURLs() {
+  return JSON.parse(
+    storedQueue().ciphertext.replace(/^enc\((.*)\)$/s, "$1")
+  ).map(entry => entry.url);
+}
+
+async function queuePendingURLs(...payloads) {
   for (const payload of payloads) {
     lazy.gFeltPendingURLs.push(payload);
   }
   await lazy.gFeltPendingURLs._writes;
 }
 
-// Resets the queue to how the next launch finds it, without running init().
+/**
+ * Resets the queue to how the next launch finds it and starts its restore.
+ *
+ * @param {object} options
+ * @param {boolean} options.restarted Whether it follows an in-app restart.
+ * @returns {Promise<void>} Resolves once the restore has finished.
+ */
 function beginLaunch({ restarted }) {
-  Services.env.set("MOZ_APP_RESTART", restarted ? "1" : "");
   lazy.gFeltPendingURLs._pendingURLs = [];
   lazy.gFeltPendingURLs._ready = false;
   lazy.gFeltPendingURLs._initPromise = null;
+  Services.env.set("MOZ_APP_RESTART", restarted ? "1" : "");
+  try {
+    return lazy.gFeltPendingURLs.init();
+  } finally {
+    // The restore reads it before its first await, so it can be unset here
+    // rather than leaking into later tasks.
+    Services.env.set("MOZ_APP_RESTART", "");
+  }
 }
 
 /**
@@ -128,8 +162,7 @@ function beginLaunch({ restarted }) {
  * @returns {Promise<Array<object>>} The queue that launch starts with.
  */
 async function relaunch({ restarted }) {
-  beginLaunch({ restarted });
-  await lazy.gFeltPendingURLs.init();
+  await beginLaunch({ restarted });
   await lazy.gFeltPendingURLs._writes;
   return [...lazy.gFeltPendingURLs];
 }
@@ -158,7 +191,6 @@ add_setup(async function () {
       configurable: true,
       value: felt,
     });
-    Services.env.set("MOZ_APP_RESTART", "");
   });
 });
 
@@ -172,47 +204,69 @@ add_task(async function test_nothing_stored_restores_nothing() {
 
 add_task(async function test_queue_is_stored_encrypted() {
   await relaunch({ restarted: false });
-  await queue(url("https://example.com/a"));
+  OSKeyStore.encrypt.resetHistory();
+  await queuePendingURLs(url("https://example.com/a"));
 
-  Assert.ok(
-    storedQueue().startsWith("enc("),
-    "the queue is stored as the keystore wrote it, not as plain JSON"
+  Assert.ok(OSKeyStore.encrypt.calledOnce, "the queue is encrypted once");
+  const [plaintext] = OSKeyStore.encrypt.firstCall.args;
+  Assert.deepEqual(
+    JSON.parse(plaintext),
+    [url("https://example.com/a")],
+    "the keystore is handed the queued URLs"
   );
+  const stored = storedQueue();
+  Assert.strictEqual(
+    stored.ciphertext,
+    await OSKeyStore.encrypt.firstCall.returnValue,
+    "the stored ciphertext is exactly what the keystore returned"
+  );
+  Assert.deepEqual(
+    Object.keys(stored).sort(),
+    ["ciphertext", "createdAt", "version"],
+    "nothing but the ciphertext and its metadata is stored"
+  );
+  Assert.equal(stored.version, 1, "the version is stored in the clear");
+  Assert.ok(Number.isFinite(stored.createdAt), "and so is the creation time");
 });
 
-add_task(async function test_restart_carries_the_queue_over() {
+add_task(async function test_restarts_keep_carrying_the_queue_over() {
   await relaunch({ restarted: false });
-  await queue(
+  const queued = [
     url("https://example.com/a"),
-    url("https://example.com/b", lazy.FELT_OPEN_WINDOW_DISPOSITION.NEW_WINDOW)
-  );
+    url("https://example.com/b", lazy.FELT_OPEN_WINDOW_DISPOSITION.NEW_WINDOW),
+  ];
+  await queuePendingURLs(...queued);
 
-  Assert.deepEqual(
-    await relaunch({ restarted: true }),
-    [
-      url("https://example.com/a"),
-      url(
-        "https://example.com/b",
-        lazy.FELT_OPEN_WINDOW_DISPOSITION.NEW_WINDOW
-      ),
-    ],
-    "both URLs come back in the order they were queued"
-  );
-  Assert.notStrictEqual(
-    storedQueue(),
-    undefined,
-    "the restored queue is stored again, so a second restart also carries it"
-  );
-  Assert.equal(
-    (await relaunch({ restarted: true })).length,
-    2,
-    "a second restart carries the queue as well"
-  );
+  // A URL that arrives while FELT is still signed out can sit behind several
+  // update restarts in a row before anything opens it.
+  for (let restart = 1; restart <= 5; restart++) {
+    Assert.deepEqual(
+      await relaunch({ restarted: true }),
+      queued,
+      `restart ${restart} carries the queue over in the order it was queued`
+    );
+    Assert.deepEqual(
+      storedURLs(),
+      queued.map(entry => entry.url),
+      `and stores it again for the restart after ${restart}`
+    );
+  }
+
+  const late = url("https://example.com/c");
+  await queuePendingURLs(late);
+  queued.push(late);
+  for (let restart = 1; restart <= 2; restart++) {
+    Assert.deepEqual(
+      await relaunch({ restarted: true }),
+      queued,
+      `a URL queued between restarts is carried by restart ${restart} after it`
+    );
+  }
 });
 
 add_task(async function test_cold_start_discards_the_queue() {
   await relaunch({ restarted: false });
-  await queue(url("https://example.com/cold-start"));
+  await queuePendingURLs(url("https://example.com/cold-start"));
 
   Assert.deepEqual(
     await relaunch({ restarted: false }),
@@ -228,14 +282,17 @@ add_task(async function test_cold_start_discards_the_queue() {
 
 add_task(async function test_restart_requested_during_cold_start_restore() {
   await relaunch({ restarted: false });
-  await queue(url("https://example.com/leftover"));
+  await queuePendingURLs(url("https://example.com/leftover"));
 
-  beginLaunch({ restarted: false });
-  const restoring = lazy.gFeltPendingURLs.init();
+  const restoring = beginLaunch({ restarted: false });
   // Quit() sets this in the current process when it requests a restart.
   Services.env.set("MOZ_APP_RESTART", "1");
-  await restoring;
-  await lazy.gFeltPendingURLs._writes;
+  try {
+    await restoring;
+    await lazy.gFeltPendingURLs._writes;
+  } finally {
+    Services.env.set("MOZ_APP_RESTART", "");
+  }
 
   Assert.deepEqual(
     [...lazy.gFeltPendingURLs],
@@ -247,7 +304,7 @@ add_task(async function test_restart_requested_during_cold_start_restore() {
 
 add_task(async function test_draining_the_queue_clears_the_stored_copy() {
   await relaunch({ restarted: false });
-  await queue(url("https://example.com/drained"));
+  await queuePendingURLs(url("https://example.com/drained"));
 
   lazy.gFeltPendingURLs.clear();
   await lazy.gFeltPendingURLs._writes;
@@ -266,13 +323,13 @@ add_task(async function test_draining_the_queue_clears_the_stored_copy() {
 
 add_task(async function test_restored_urls_precede_newly_queued_ones() {
   await relaunch({ restarted: false });
-  await queue(url("https://example.com/before-restart"));
+  await queuePendingURLs(url("https://example.com/before-restart"));
 
-  beginLaunch({ restarted: true });
+  const restoring = beginLaunch({ restarted: true });
   // Arrives on the command line before init() finishes, as it would on a launch
   // that is handed a URL straight away.
   lazy.gFeltPendingURLs.push(url("https://example.com/after-restart"));
-  await lazy.gFeltPendingURLs.init();
+  await restoring;
 
   Assert.deepEqual(
     [...lazy.gFeltPendingURLs].map(entry => entry.url),
@@ -307,11 +364,10 @@ add_task(async function test_legacy_plaintext_file_is_removed_unread() {
 
 add_task(async function test_clear_during_restore_discards_restored_urls() {
   await relaunch({ restarted: false });
-  await queue(url("https://example.com/previous-session"));
+  await queuePendingURLs(url("https://example.com/previous-session"));
 
-  beginLaunch({ restarted: true });
   const release = holdDecrypt();
-  const restoring = lazy.gFeltPendingURLs.init();
+  const restoring = beginLaunch({ restarted: true });
   // A signout that lands while the restore is still waiting on the keystore.
   lazy.gFeltPendingURLs.clear();
   release();
@@ -328,11 +384,10 @@ add_task(async function test_clear_during_restore_discards_restored_urls() {
 
 add_task(async function test_flush_waits_for_a_restore_in_progress() {
   await relaunch({ restarted: false });
-  await queue(url("https://example.com/mid-restore"));
+  await queuePendingURLs(url("https://example.com/mid-restore"));
 
-  beginLaunch({ restarted: true });
   const release = holdDecrypt();
-  lazy.gFeltPendingURLs.init();
+  beginLaunch({ restarted: true });
   // A restart that begins while the restore is still waiting on the keystore:
   // the stored queue has already been consumed, so flush() must wait for the
   // restore to write it back.
@@ -368,12 +423,12 @@ add_task(async function test_flush_waits_for_in_flight_writes() {
 add_task(async function test_stale_stored_queue_is_discarded() {
   await relaunch({ restarted: false });
   plantStoredQueue(
-    `enc(${JSON.stringify({
-      version: 1,
+    record({
       createdAt: Date.now() - MAX_AGE_MS - 1000,
       urls: [url("https://example.com/stale")],
-    })})`
+    })
   );
+  OSKeyStore.decrypt.resetHistory();
 
   Assert.deepEqual(
     await relaunch({ restarted: true }),
@@ -381,51 +436,69 @@ add_task(async function test_stale_stored_queue_is_discarded() {
     "a queue past its age cap is dropped"
   );
   Assert.equal(storedQueue(), undefined, "and it is still consumed");
+  Assert.ok(
+    OSKeyStore.decrypt.notCalled,
+    "without asking the keystore to decrypt it"
+  );
+});
+
+add_task(async function test_slightly_future_dated_queue_survives_clock_skew() {
+  await relaunch({ restarted: false });
+  plantStoredQueue(
+    record({
+      createdAt: Date.now() + MAX_CLOCK_SKEW_MS - 60 * 1000,
+      urls: [url("https://example.com/skewed")],
+    })
+  );
+
+  Assert.deepEqual(
+    (await relaunch({ restarted: true })).map(entry => entry.url),
+    ["https://example.com/skewed"],
+    "a clock that stepped back a little does not lose the queue"
+  );
 });
 
 add_task(async function test_future_dated_stored_queue_is_discarded() {
   await relaunch({ restarted: false });
   plantStoredQueue(
-    `enc(${JSON.stringify({
-      version: 1,
-      createdAt: Date.now() + MAX_AGE_MS,
+    record({
+      createdAt: Date.now() + MAX_CLOCK_SKEW_MS + 60 * 1000,
       urls: [url("https://example.com/future")],
-    })})`
+    })
   );
 
   Assert.deepEqual(
     await relaunch({ restarted: true }),
     [],
-    "a future-dated queue is dropped"
+    "a queue dated further ahead than clock skew explains is dropped"
   );
+  Assert.equal(storedQueue(), undefined, "and it is consumed");
 });
 
-add_task(async function test_unknown_version_is_discarded() {
+add_task(async function test_unknown_version_is_left_for_its_build() {
   await relaunch({ restarted: false });
-  plantStoredQueue(
-    `enc(${JSON.stringify({
-      version: 2,
-      createdAt: Date.now(),
-      urls: [url("https://example.com/v2")],
-    })})`
-  );
+  const other = record({ version: 2, urls: [url("https://example.com/v2")] });
+  plantStoredQueue(other);
+  OSKeyStore.decrypt.resetHistory();
 
   Assert.deepEqual(
     await relaunch({ restarted: true }),
     [],
-    "an unrecognized version is dropped"
+    "a record from another version is not restored"
   );
+  Assert.deepEqual(
+    storedQueue(),
+    other,
+    "and it is left in place for the build that wrote it"
+  );
+  Assert.ok(OSKeyStore.decrypt.notCalled, "without being decrypted");
 });
 
 add_task(async function test_unreadable_stored_queue_is_discarded() {
   await relaunch({ restarted: false });
-  const unreadable = JSON.stringify({
-    version: 1,
-    createdAt: Date.now(),
-    urls: [url("https://example.com/planted")],
-  });
+  const unreadable = record({ ciphertext: "not from the keystore" });
   OSKeyStore.decrypt
-    .withArgs(unreadable)
+    .withArgs(unreadable.ciphertext)
     .rejects(new Error("Invalid ciphertext"));
   plantStoredQueue(unreadable);
 
@@ -441,18 +514,61 @@ add_task(async function test_unreadable_stored_queue_is_discarded() {
   );
 });
 
+add_task(async function test_malformed_stored_records_are_discarded() {
+  const malformed = [
+    ["a bare string", "enc([])"],
+    ["a number", 42],
+    ["null", null],
+    ["an array", [record()]],
+    ["an empty object", {}],
+    ["a record with no version", record({ version: undefined })],
+    ["a string version", record({ version: "1" })],
+    ["a fractional version", record({ version: 1.5 })],
+    ["a missing creation time", record({ createdAt: undefined })],
+    ["a string creation time", record({ createdAt: String(Date.now()) })],
+    ["a NaN creation time", record({ createdAt: NaN })],
+    ["a missing ciphertext", record({ ciphertext: undefined })],
+    ["a non-string ciphertext", record({ ciphertext: 42 })],
+    ["ciphertext that is not JSON", record({ ciphertext: "enc({not json" })],
+    [
+      "ciphertext holding an object",
+      record({ ciphertext: 'enc({"urls":[]})' }),
+    ],
+    ["ciphertext holding a string", record({ ciphertext: 'enc("https://a")' })],
+    ["ciphertext holding null", record({ ciphertext: "enc(null)" })],
+    [
+      "entries that are not objects",
+      record({ urls: [null, 42, "https://example.com/bare", [], true] }),
+    ],
+    [
+      "entries with a non-string url",
+      record({ urls: [{ url: 42 }, { url: {} }, { url: null }] }),
+    ],
+  ];
+
+  for (const [description, value] of malformed) {
+    await relaunch({ restarted: false });
+    plantStoredQueue(value);
+
+    Assert.deepEqual(
+      await relaunch({ restarted: true }),
+      [],
+      `${description} restores nothing`
+    );
+    Assert.equal(storedQueue(), undefined, `and ${description} is consumed`);
+  }
+});
+
 add_task(async function test_restored_urls_are_sanitized() {
   await relaunch({ restarted: false });
   plantStoredQueue(
-    `enc(${JSON.stringify({
-      version: 1,
-      createdAt: Date.now(),
+    record({
       urls: [
         url("chrome://browser/content/browser.xhtml"),
         url("https://example.com/kept"),
         url("not a url at all"),
       ],
-    })})`
+    })
   );
 
   Assert.deepEqual(
@@ -464,7 +580,7 @@ add_task(async function test_restored_urls_are_sanitized() {
 
 add_task(async function test_signout_drops_the_stored_queue() {
   await relaunch({ restarted: false });
-  await queue(url("https://example.com/signed-out"));
+  await queuePendingURLs(url("https://example.com/signed-out"));
 
   lazy.gFeltPendingURLs.clear();
   await lazy.FeltStorage.endSession();
@@ -502,7 +618,7 @@ add_task(async function test_signout_during_encryption_drops_the_queue() {
 
 add_task(async function test_signout_behind_a_stalled_write_drops_the_queue() {
   await relaunch({ restarted: false });
-  await queue(url("https://example.com/previous-session"));
+  await queuePendingURLs(url("https://example.com/previous-session"));
 
   // A later write whose encrypt never settles until the very end.
   const { started, release } = holdEncrypt();
@@ -577,7 +693,7 @@ add_task(
 
 add_task(async function test_ending_a_session_keeps_the_stored_queue() {
   await relaunch({ restarted: false });
-  await queue(url("https://example.com/failed-unlock"));
+  await queuePendingURLs(url("https://example.com/failed-unlock"));
 
   // A failed unlock rolls back the session it began without signing out.
   await lazy.FeltStorage.endSession();
@@ -593,7 +709,7 @@ add_task(async function test_a_burst_of_pushes_is_written_once() {
   await relaunch({ restarted: false });
   OSKeyStore.encrypt.resetHistory();
 
-  await queue(
+  await queuePendingURLs(
     url("https://example.com/1"),
     url("https://example.com/2"),
     url("https://example.com/3")

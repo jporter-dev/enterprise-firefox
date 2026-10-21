@@ -29,8 +29,6 @@ if (lazy.isBuildAppBrowser()) {
       // eslint-disable-next-line mozilla/no-browser-refs-in-toolkit
       "moz-src:///browser/components/FeltURLHandler.sys.mjs",
     // eslint-disable-next-line mozilla/no-browser-refs-in-toolkit
-    gFeltPendingURLs: "resource:///modules/FeltURLHandler.sys.mjs",
-    // eslint-disable-next-line mozilla/no-browser-refs-in-toolkit
     sanitizeFeltURLPayload: "resource:///modules/FeltURLHandler.sys.mjs",
     // eslint-disable-next-line mozilla/no-browser-refs-in-toolkit
     BrowserWindowTracker: "resource:///modules/BrowserWindowTracker.sys.mjs",
@@ -436,9 +434,6 @@ export class Felt {
       lazy.log.error(`Failed to post signout on exit: ${err}`);
     } finally {
       lazy.FeltLocking.clearLockAndTokens();
-      if (lazy.isBuildAppBrowser()) {
-        lazy.gFeltPendingURLs.clear();
-      }
       try {
         if (signedOut) {
           await lazy.FeltStorage.endSession();

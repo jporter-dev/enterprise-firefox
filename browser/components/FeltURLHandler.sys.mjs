@@ -143,9 +143,9 @@ export const gFeltPendingURLs = {
    * on the command line before the restore has run cannot overwrite the
    * stored queue before it has been read. A write that has not started yet
    * reads the queue when it does, so later updates join it rather than each
-   * encrypting and saving the whole queue again. A write whose queue was
-   * replaced by clear() while it was encrypting is dropped, so a signout
-   * cannot be undone by a write that started before it.
+   * encrypting and saving the whole queue again. clear() reaches FeltStorage
+   * without waiting on the chain, which is how a write that was encrypting
+   * when it ran gets dropped.
    *
    * @returns {Promise<void>} Resolves once this update has been written.
    */
@@ -158,16 +158,7 @@ export const gFeltPendingURLs = {
       .then(() => this.init())
       .then(async () => {
         this._writeQueued = false;
-        const urls = this._pendingURLs;
-        if (!urls.length) {
-          await lazy.FeltStorage.clearPendingURLs();
-          return;
-        }
-        const ciphertext = await lazy.FeltStorage.encryptPendingURLs(urls);
-        if (urls !== this._pendingURLs) {
-          return;
-        }
-        await lazy.FeltStorage.storePendingURLs(ciphertext);
+        await lazy.FeltStorage.storePendingURLs(this._pendingURLs);
       })
       .catch(error => {
         this._writeQueued = false;
