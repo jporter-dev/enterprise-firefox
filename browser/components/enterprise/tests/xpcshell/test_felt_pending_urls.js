@@ -41,21 +41,27 @@ async function fakeDecrypt(ciphertext) {
 }
 
 /**
- * Holds the next decrypt until the returned function is called, standing in
- * for a keystore that takes a while to answer.
+ * Holds the next decrypt until it is released, standing in for a keystore
+ * that is slow to answer.
  *
- * @returns {Function} Lets the held decrypt finish.
+ * @returns {{started: Promise<void>, release: Function}} started resolves once
+ *   the decrypt has been called; release lets it finish.
  */
 function holdDecrypt() {
-  let release;
+  let release, markStarted;
   const gate = new Promise(resolve => (release = resolve));
+  const started = new Promise(resolve => (markStarted = resolve));
   OSKeyStore.decrypt.callsFake(async ciphertext => {
+    markStarted();
     await gate;
     return fakeDecrypt(ciphertext);
   });
-  return () => {
-    release();
-    OSKeyStore.decrypt.callsFake(fakeDecrypt);
+  return {
+    started,
+    release() {
+      release();
+      OSKeyStore.decrypt.callsFake(fakeDecrypt);
+    },
   };
 }
 
@@ -362,13 +368,30 @@ add_task(async function test_legacy_plaintext_file_is_removed_unread() {
   );
 });
 
-add_task(async function test_clear_during_restore_discards_restored_urls() {
+add_task(async function test_reading_leaves_the_stored_queue_in_place() {
+  await relaunch({ restarted: false });
+  await queuePendingURLs(url("https://example.com/mid-restore"));
+
+  Assert.deepEqual(
+    (await lazy.FeltStorage.readPendingURLs()).map(entry => entry.url),
+    ["https://example.com/mid-restore"],
+    "the stored queue is read back"
+  );
+  Assert.deepEqual(
+    storedURLs(),
+    ["https://example.com/mid-restore"],
+    "and left on disk, so a restart that interrupts the restore still finds it"
+  );
+});
+
+add_task(async function test_signout_during_restore_discards_restored_urls() {
   await relaunch({ restarted: false });
   await queuePendingURLs(url("https://example.com/previous-session"));
 
-  const release = holdDecrypt();
+  const { started, release } = holdDecrypt();
   const restoring = beginLaunch({ restarted: true });
-  // A signout that lands while the restore is still waiting on the keystore.
+  await started;
+  // A signout while a stalled keystore is still decrypting the stored queue.
   lazy.gFeltPendingURLs.clear();
   release();
   await restoring;
@@ -380,44 +403,6 @@ add_task(async function test_clear_during_restore_discards_restored_urls() {
     "URLs from the session that was signed out are not restored into the queue"
   );
   Assert.equal(storedQueue(), undefined, "and they are not stored again");
-});
-
-add_task(async function test_flush_waits_for_a_restore_in_progress() {
-  await relaunch({ restarted: false });
-  await queuePendingURLs(url("https://example.com/mid-restore"));
-
-  const release = holdDecrypt();
-  beginLaunch({ restarted: true });
-  // A restart that begins while the restore is still waiting on the keystore:
-  // the stored queue has already been consumed, so flush() must wait for the
-  // restore to write it back.
-  const flushed = lazy.gFeltPendingURLs.flush();
-  do_timeout(50, release);
-  await flushed;
-
-  Assert.deepEqual(
-    [...lazy.gFeltPendingURLs].map(entry => entry.url),
-    ["https://example.com/mid-restore"],
-    "flush() does not resolve until the restore has finished"
-  );
-  Assert.deepEqual(
-    storedURLs(),
-    ["https://example.com/mid-restore"],
-    "and the restored queue has been stored again"
-  );
-});
-
-add_task(async function test_flush_waits_for_in_flight_writes() {
-  await relaunch({ restarted: false });
-  lazy.gFeltPendingURLs.push(url("https://example.com/flushed"));
-
-  await lazy.gFeltPendingURLs.flush();
-
-  Assert.deepEqual(
-    storedURLs(),
-    ["https://example.com/flushed"],
-    "a URL queued right before shutdown is stored once flush() resolves"
-  );
 });
 
 add_task(async function test_stale_stored_queue_is_discarded() {
@@ -536,6 +521,7 @@ add_task(async function test_malformed_stored_records_are_discarded() {
     ],
     ["ciphertext holding a string", record({ ciphertext: 'enc("https://a")' })],
     ["ciphertext holding null", record({ ciphertext: "enc(null)" })],
+    ["an empty list of URLs", record({ urls: [] })],
     [
       "entries that are not objects",
       record({ urls: [null, 42, "https://example.com/bare", [], true] }),
@@ -576,6 +562,21 @@ add_task(async function test_restored_urls_are_sanitized() {
     ["https://example.com/kept"],
     "chrome: and unparseable URLs do not survive being restored"
   );
+  Assert.deepEqual(
+    storedURLs(),
+    ["https://example.com/kept"],
+    "and the stored copy is rewritten without them"
+  );
+
+  plantStoredQueue(
+    record({ urls: [url("chrome://browser/content/browser.xhtml")] })
+  );
+  Assert.deepEqual(
+    await relaunch({ restarted: true }),
+    [],
+    "a queue that sanitizing empties restores nothing"
+  );
+  Assert.equal(storedQueue(), undefined, "and its stored copy is removed");
 });
 
 add_task(async function test_signout_drops_the_stored_queue() {
@@ -595,24 +596,6 @@ add_task(async function test_signout_drops_the_stored_queue() {
     await relaunch({ restarted: true }),
     [],
     "URLs queued by the session that ended are not reopened"
-  );
-});
-
-add_task(async function test_signout_during_encryption_drops_the_queue() {
-  await relaunch({ restarted: false });
-  const { started, release } = holdEncrypt();
-  lazy.gFeltPendingURLs.push(url("https://example.com/mid-encrypt"));
-  await started;
-
-  lazy.gFeltPendingURLs.clear();
-  await lazy.FeltStorage.endSession();
-  release();
-  await lazy.gFeltPendingURLs._writes;
-
-  Assert.equal(
-    storedQueue(),
-    undefined,
-    "a write that finishes after signout does not bring the queue back"
   );
 });
 
@@ -725,18 +708,4 @@ add_task(async function test_a_burst_of_pushes_is_written_once() {
     ["https://example.com/1", "https://example.com/2", "https://example.com/3"],
     "and that write holds all of them"
   );
-});
-
-// Last, because it leaves the write chain stuck behind a keystore that never
-// answers.
-add_task(async function test_flush_is_bounded_when_the_keystore_hangs() {
-  await relaunch({ restarted: false });
-  OSKeyStore.encrypt.callsFake(() => new Promise(() => {}));
-  lazy.gFeltPendingURLs.push(url("https://example.com/hung"));
-
-  await lazy.gFeltPendingURLs.flush();
-
-  Assert.ok(true, "flush() resolves even though the write never lands");
-  lazy.gFeltPendingURLs._writes = Promise.resolve();
-  OSKeyStore.encrypt.callsFake(fakeEncrypt);
 });

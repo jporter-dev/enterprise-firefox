@@ -15,9 +15,7 @@ ChromeUtils.defineLazyGetter(
 );
 
 ChromeUtils.defineESModuleGetters(lazy, {
-  AsyncShutdown: "resource://gre/modules/AsyncShutdown.sys.mjs",
   FeltStorage: "resource://gre/modules/enterprise/FeltStorage.sys.mjs",
-  setTimeout: "resource://gre/modules/Timer.sys.mjs",
 });
 
 ChromeUtils.defineLazyGetter(lazy, "legacyPendingURLsPath", () =>
@@ -26,10 +24,6 @@ ChromeUtils.defineLazyGetter(lazy, "legacyPendingURLsPath", () =>
     "pendingURLs.json"
   )
 );
-
-// The keystore may stop answering once shutdown is under way, so a restart
-// only waits this long for an in-flight write before carrying on.
-const SHUTDOWN_FLUSH_TIMEOUT_MS = 5000;
 
 export const FELT_OPEN_WINDOW_DISPOSITION = {
   DEFAULT: 0,
@@ -124,9 +118,9 @@ export const gFeltPendingURLs = {
       await lazy.FeltStorage.clearPendingURLs();
       return;
     }
-    const restored = await lazy.FeltStorage.takePendingURLs();
-    // clear() replaces the queue; a signout that happened while the keystore
-    // was answering must not get the previous session's URLs back.
+    const restored = await lazy.FeltStorage.readPendingURLs();
+    // clear() replaces the queue. A signout while a stalled keystore was still
+    // decrypting must not hand the previous session's URLs to the next one.
     if (queue !== this._pendingURLs) {
       return;
     }
@@ -169,23 +163,6 @@ export const gFeltPendingURLs = {
     return this._writes;
   },
 
-  /**
-   * Waits for in-flight writes so a restart does not lose a URL that was
-   * queued just before it, bounded so shutdown cannot hang on the keystore.
-   * The restore consumes the stored queue before it writes it back, so a
-   * restart that begins mid-restore has to wait for init() as well.
-   *
-   * @returns {Promise<void>}
-   */
-  flush() {
-    return Promise.race([
-      this.init().then(() => this._writes),
-      new Promise(resolve =>
-        lazy.setTimeout(resolve, SHUTDOWN_FLUSH_TIMEOUT_MS)
-      ),
-    ]);
-  },
-
   [Symbol.iterator]() {
     return this._pendingURLs[Symbol.iterator]();
   },
@@ -217,12 +194,6 @@ if (Services.felt?.isFeltUI()) {
   gFeltPendingURLs.init().catch(error => {
     console.error(`Failed to initialize Felt pending URL storage: ${error}`);
   });
-  // profile-change-teardown runs before JSONFile finalizes felt.json at
-  // profile-before-change, so the write can still land.
-  lazy.AsyncShutdown.profileChangeTeardown.addBlocker(
-    "FeltURLHandler: store pending URLs before an app restart",
-    () => (Services.startup.restarting ? gFeltPendingURLs.flush() : null)
-  );
 }
 
 let lastNotificationShown = 0;

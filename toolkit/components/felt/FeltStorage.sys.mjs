@@ -273,15 +273,17 @@ export const FeltStorage = {
   },
 
   /**
-   * Reads and removes the stored external URLs. The record is dropped
-   * before it is decrypted, so a value that cannot be read is still consumed
-   * rather than retried on every launch. A record with another version is
-   * left alone, since a different build sharing felt.json may have written it.
+   * Reads the stored external URLs. A usable record is left in place until
+   * the caller stores the restored queue again, so a restart that interrupts
+   * this launch before then still finds it. A record that is stale or cannot
+   * be read is removed, so it is not retried on every launch. A record with
+   * another version is left alone, since a different build sharing felt.json
+   * may have written it.
    *
    * @returns {Promise<Array<object>>} The pending URL payloads, or an empty
    *   array when there is nothing usable stored.
    */
-  async takePendingURLs() {
+  async readPendingURLs() {
     const record = this._feltStorage.data?.pendingURLs;
     if (record === undefined) {
       return [];
@@ -292,8 +294,6 @@ export const FeltStorage = {
     ) {
       return [];
     }
-    delete this._feltStorage.data.pendingURLs;
-    await this._feltStorage._save();
 
     const age = Date.now() - record?.createdAt;
     if (
@@ -303,19 +303,30 @@ export const FeltStorage = {
       age < -PENDING_URLS_MAX_CLOCK_SKEW_MS ||
       age > PENDING_URLS_MAX_AGE_MS
     ) {
+      await this.clearPendingURLs();
       return [];
     }
-    const plaintext = await lazy.OSKeyStore.decrypt(
-      record.ciphertext,
-      "",
-      false
-    );
-    const urls = JSON.parse(
-      new TextDecoder().decode(
-        Uint8Array.from(plaintext, char => char.charCodeAt(0))
-      )
-    );
-    return Array.isArray(urls) ? urls : [];
+    let urls;
+    try {
+      const plaintext = await lazy.OSKeyStore.decrypt(
+        record.ciphertext,
+        "",
+        false
+      );
+      urls = JSON.parse(
+        new TextDecoder().decode(
+          Uint8Array.from(plaintext, char => char.charCodeAt(0))
+        )
+      );
+    } catch (error) {
+      await this.clearPendingURLs();
+      throw error;
+    }
+    if (!Array.isArray(urls) || !urls.length) {
+      await this.clearPendingURLs();
+      return [];
+    }
+    return urls;
   },
 
   async uninit() {
