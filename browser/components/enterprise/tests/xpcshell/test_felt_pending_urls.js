@@ -41,31 +41,6 @@ async function fakeDecrypt(ciphertext) {
 }
 
 /**
- * Holds the next decrypt until it is released, standing in for a keystore
- * that is slow to answer.
- *
- * @returns {{started: Promise<void>, release: Function}} started resolves once
- *   the decrypt has been called; release lets it finish.
- */
-function holdDecrypt() {
-  let release, markStarted;
-  const gate = new Promise(resolve => (release = resolve));
-  const started = new Promise(resolve => (markStarted = resolve));
-  OSKeyStore.decrypt.callsFake(async ciphertext => {
-    markStarted();
-    await gate;
-    return fakeDecrypt(ciphertext);
-  });
-  return {
-    started,
-    release() {
-      release();
-      OSKeyStore.decrypt.callsFake(fakeDecrypt);
-    },
-  };
-}
-
-/**
  * Holds the next encrypt until it is released.
  *
  * @returns {{started: Promise<void>, release: Function}} started resolves once
@@ -331,18 +306,20 @@ add_task(async function test_restored_urls_precede_newly_queued_ones() {
   await relaunch({ restarted: false });
   await queuePendingURLs(url("https://example.com/before-restart"));
 
-  const restoring = beginLaunch({ restarted: true });
-  // Arrives on the command line before init() finishes, as it would on a launch
-  // that is handed a URL straight away.
-  lazy.gFeltPendingURLs.push(url("https://example.com/after-restart"));
-  await restoring;
+  OSKeyStore.decrypt.callsFake(async ciphertext => {
+    // Arrives on the command line while the restore is still reading the
+    // stored queue, as it would on a launch handed a URL straight away.
+    lazy.gFeltPendingURLs.push(url("https://example.com/after-restart"));
+    return fakeDecrypt(ciphertext);
+  });
+  const restored = await relaunch({ restarted: true });
+  OSKeyStore.decrypt.callsFake(fakeDecrypt);
 
   Assert.deepEqual(
-    [...lazy.gFeltPendingURLs].map(entry => entry.url),
+    restored.map(entry => entry.url),
     ["https://example.com/before-restart", "https://example.com/after-restart"],
     "the restored URL is opened ahead of the one that arrived after it"
   );
-  await lazy.gFeltPendingURLs._writes;
   Assert.deepEqual(
     storedURLs(),
     ["https://example.com/before-restart", "https://example.com/after-restart"],
@@ -388,17 +365,16 @@ add_task(async function test_signout_during_restore_discards_restored_urls() {
   await relaunch({ restarted: false });
   await queuePendingURLs(url("https://example.com/previous-session"));
 
-  const { started, release } = holdDecrypt();
-  const restoring = beginLaunch({ restarted: true });
-  await started;
-  // A signout while a stalled keystore is still decrypting the stored queue.
-  lazy.gFeltPendingURLs.clear();
-  release();
-  await restoring;
-  await lazy.gFeltPendingURLs._writes;
+  OSKeyStore.decrypt.callsFake(async ciphertext => {
+    // A signout while a slow keystore is still decrypting the stored queue.
+    lazy.gFeltPendingURLs.clear();
+    return fakeDecrypt(ciphertext);
+  });
+  const restored = await relaunch({ restarted: true });
+  OSKeyStore.decrypt.callsFake(fakeDecrypt);
 
   Assert.deepEqual(
-    [...lazy.gFeltPendingURLs],
+    restored,
     [],
     "URLs from the session that was signed out are not restored into the queue"
   );
@@ -636,36 +612,31 @@ add_task(
   async function test_signout_then_new_url_does_not_store_the_old_queue() {
     await relaunch({ restarted: false });
 
-    const gates = [Promise.withResolvers(), Promise.withResolvers()];
-    const started = [Promise.withResolvers(), Promise.withResolvers()];
+    let storedWhenNextWriteBegan;
     let calls = 0;
     OSKeyStore.encrypt.callsFake(async plaintext => {
-      const call = calls++;
-      started[call].resolve();
-      await gates[call].promise;
+      if (calls++ === 0) {
+        // A signout, then a new link, while the first write is still encrypting.
+        lazy.gFeltPendingURLs.clear();
+        await lazy.FeltStorage.endSession();
+        lazy.gFeltPendingURLs.push(url("https://example.com/next-session"));
+      } else {
+        storedWhenNextWriteBegan = storedQueue();
+      }
       return fakeEncrypt(plaintext);
     });
 
     lazy.gFeltPendingURLs.push(url("https://example.com/previous-session"));
-    await started[0].promise;
-
-    lazy.gFeltPendingURLs.clear();
-    await lazy.FeltStorage.endSession();
-    lazy.gFeltPendingURLs.push(url("https://example.com/next-session"));
-
-    gates[0].resolve();
-    await started[1].promise;
+    await lazy.gFeltPendingURLs._writes;
+    // The signout queued another write while the first one was encrypting.
+    await lazy.gFeltPendingURLs._writes;
+    OSKeyStore.encrypt.callsFake(fakeEncrypt);
 
     Assert.equal(
-      storedQueue(),
+      storedWhenNextWriteBegan,
       undefined,
-      "the write from before signout is dropped while the next one encrypts"
+      "the write from before signout is dropped rather than stored"
     );
-
-    gates[1].resolve();
-    OSKeyStore.encrypt.callsFake(fakeEncrypt);
-    await lazy.gFeltPendingURLs._writes;
-
     Assert.deepEqual(
       storedURLs(),
       ["https://example.com/next-session"],
