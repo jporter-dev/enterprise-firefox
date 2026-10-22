@@ -85,6 +85,9 @@ export const gFeltPendingURLs = {
   _writeQueued: false,
 
   async init() {
+    if (!Services.felt?.isFeltUI()) {
+      throw new Error("The Felt URL queue is only used in the Felt UI process");
+    }
     if (this._ready) {
       return;
     }
@@ -146,7 +149,7 @@ export const gFeltPendingURLs = {
    * @returns {Promise<void>} Resolves once this update has been written.
    */
   _persist() {
-    if (!Services.felt?.isFeltUI() || this._writeQueued) {
+    if (this._writeQueued) {
       return this._writes;
     }
     this._writeQueued = true;
@@ -168,6 +171,9 @@ export const gFeltPendingURLs = {
   },
 
   push(payload) {
+    if (!Services.felt?.isFeltUI()) {
+      throw new Error("The Felt URL queue is only used in the Felt UI process");
+    }
     const rv = this._pendingURLs.push(payload);
     this._persist();
     return rv;
@@ -178,14 +184,15 @@ export const gFeltPendingURLs = {
   },
 
   clear() {
-    this._pendingURLs = [];
-    if (Services.felt?.isFeltUI()) {
-      // Not chained behind _writes, so a write stuck on the keystore cannot
-      // keep the stored queue around past a signout.
-      lazy.FeltStorage.clearPendingURLs().catch(error => {
-        console.error("Failed to clear stored Felt URLs", error);
-      });
+    if (!Services.felt?.isFeltUI()) {
+      throw new Error("The Felt URL queue is only used in the Felt UI process");
     }
+    this._pendingURLs = [];
+    // Not chained behind _writes, so a write stuck on the keystore cannot
+    // keep the stored queue around past a signout.
+    lazy.FeltStorage.clearPendingURLs().catch(error => {
+      console.error("Failed to clear stored Felt URLs", error);
+    });
     this._persist();
   },
 };

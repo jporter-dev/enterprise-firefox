@@ -27,9 +27,6 @@ const { sinon } = ChromeUtils.importESModule(
   "resource://testing-common/Sinon.sys.mjs"
 );
 
-const MAX_AGE_MS = 30 * 60 * 1000;
-const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
-
 async function fakeEncrypt(plaintext) {
   return `enc(${plaintext})`;
 }
@@ -95,7 +92,6 @@ function record({
 } = {}) {
   return {
     version: 1,
-    createdAt: Date.now(),
     ciphertext: `enc(${JSON.stringify(urls)})`,
     ...fields,
   };
@@ -127,13 +123,10 @@ function beginLaunch({ restarted }) {
   lazy.gFeltPendingURLs._ready = false;
   lazy.gFeltPendingURLs._initPromise = null;
   Services.env.set("MOZ_APP_RESTART", restarted ? "1" : "");
-  try {
-    return lazy.gFeltPendingURLs.init();
-  } finally {
-    // The restore reads it before its first await, so it can be unset here
-    // rather than leaking into later tasks.
-    Services.env.set("MOZ_APP_RESTART", "");
-  }
+  const restoring = lazy.gFeltPendingURLs.init();
+  // The restore reads it before its first await.
+  Services.env.set("MOZ_APP_RESTART", "");
+  return restoring;
 }
 
 /**
@@ -204,11 +197,10 @@ add_task(async function test_queue_is_stored_encrypted() {
   );
   Assert.deepEqual(
     Object.keys(stored).sort(),
-    ["ciphertext", "createdAt", "version"],
+    ["ciphertext", "version"],
     "nothing but the ciphertext and its metadata is stored"
   );
   Assert.equal(stored.version, 1, "the version is stored in the clear");
-  Assert.ok(Number.isFinite(stored.createdAt), "and so is the creation time");
 });
 
 add_task(async function test_restarts_keep_carrying_the_queue_over() {
@@ -269,12 +261,9 @@ add_task(async function test_restart_requested_during_cold_start_restore() {
   const restoring = beginLaunch({ restarted: false });
   // Quit() sets this in the current process when it requests a restart.
   Services.env.set("MOZ_APP_RESTART", "1");
-  try {
-    await restoring;
-    await lazy.gFeltPendingURLs._writes;
-  } finally {
-    Services.env.set("MOZ_APP_RESTART", "");
-  }
+  registerCleanupFunction(() => Services.env.set("MOZ_APP_RESTART", ""));
+  await restoring;
+  await lazy.gFeltPendingURLs._writes;
 
   Assert.deepEqual(
     [...lazy.gFeltPendingURLs],
@@ -382,61 +371,6 @@ add_task(async function test_signout_during_restore_discards_restored_urls() {
   Assert.equal(storedQueue(), undefined, "and they are not stored again");
 });
 
-add_task(async function test_stale_stored_queue_is_discarded() {
-  await relaunch({ restarted: false });
-  plantStoredQueue(
-    record({
-      createdAt: Date.now() - MAX_AGE_MS - 1000,
-      urls: [url("https://example.com/stale")],
-    })
-  );
-  OSKeyStore.decrypt.resetHistory();
-
-  Assert.deepEqual(
-    await relaunch({ restarted: true }),
-    [],
-    "a queue past its age cap is dropped"
-  );
-  Assert.equal(storedQueue(), undefined, "and it is still consumed");
-  Assert.ok(
-    OSKeyStore.decrypt.notCalled,
-    "without asking the keystore to decrypt it"
-  );
-});
-
-add_task(async function test_slightly_future_dated_queue_survives_clock_skew() {
-  await relaunch({ restarted: false });
-  plantStoredQueue(
-    record({
-      createdAt: Date.now() + MAX_CLOCK_SKEW_MS - 60 * 1000,
-      urls: [url("https://example.com/skewed")],
-    })
-  );
-
-  Assert.deepEqual(
-    (await relaunch({ restarted: true })).map(entry => entry.url),
-    ["https://example.com/skewed"],
-    "a clock that stepped back a little does not lose the queue"
-  );
-});
-
-add_task(async function test_future_dated_stored_queue_is_discarded() {
-  await relaunch({ restarted: false });
-  plantStoredQueue(
-    record({
-      createdAt: Date.now() + MAX_CLOCK_SKEW_MS + 60 * 1000,
-      urls: [url("https://example.com/future")],
-    })
-  );
-
-  Assert.deepEqual(
-    await relaunch({ restarted: true }),
-    [],
-    "a queue dated further ahead than clock skew explains is dropped"
-  );
-  Assert.equal(storedQueue(), undefined, "and it is consumed");
-});
-
 add_task(async function test_unknown_version_is_left_for_its_build() {
   await relaunch({ restarted: false });
   const other = record({ version: 2, urls: [url("https://example.com/v2")] });
@@ -486,9 +420,6 @@ add_task(async function test_malformed_stored_records_are_discarded() {
     ["a record with no version", record({ version: undefined })],
     ["a string version", record({ version: "1" })],
     ["a fractional version", record({ version: 1.5 })],
-    ["a missing creation time", record({ createdAt: undefined })],
-    ["a string creation time", record({ createdAt: String(Date.now()) })],
-    ["a NaN creation time", record({ createdAt: NaN })],
     ["a missing ciphertext", record({ ciphertext: undefined })],
     ["a non-string ciphertext", record({ ciphertext: 42 })],
     ["ciphertext that is not JSON", record({ ciphertext: "enc({not json" })],
@@ -679,5 +610,34 @@ add_task(async function test_a_burst_of_pushes_is_written_once() {
     storedURLs(),
     ["https://example.com/1", "https://example.com/2", "https://example.com/3"],
     "and that write holds all of them"
+  );
+});
+
+add_task(async function test_queue_throws_outside_the_felt_ui_process() {
+  const felt = Services.felt;
+  Object.defineProperty(Services, "felt", {
+    configurable: true,
+    value: { isFeltUI: () => false },
+  });
+  registerCleanupFunction(() =>
+    Object.defineProperty(Services, "felt", { configurable: true, value: felt })
+  );
+
+  const outsideFeltUI = /only used in the Felt UI process/;
+  lazy.gFeltPendingURLs._ready = false;
+  await Assert.rejects(
+    lazy.gFeltPendingURLs.init(),
+    outsideFeltUI,
+    "init() rejects outside the Felt UI process"
+  );
+  Assert.throws(
+    () => lazy.gFeltPendingURLs.push(url("https://example.com/browser")),
+    outsideFeltUI,
+    "push() throws outside the Felt UI process"
+  );
+  Assert.throws(
+    () => lazy.gFeltPendingURLs.clear(),
+    outsideFeltUI,
+    "clear() throws outside the Felt UI process"
   );
 });

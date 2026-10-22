@@ -10,13 +10,6 @@ ChromeUtils.defineESModuleGetters(lazy, {
 });
 
 const PENDING_URLS_VERSION = 1;
-// The stored queue only has to outlive the restart that wrote it. Anything
-// older is a leftover from a launch that never restored it, so it is dropped
-// rather than reopened in a session that did not ask for it.
-const PENDING_URLS_MAX_AGE_MS = 30 * 60 * 1000;
-// The system clock can step backwards between the write and the restart (an
-// NTP correction, for one), so a record from slightly in the future is kept.
-const PENDING_URLS_MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
 
 /**
  * Storage helper for reading and writing felt-related data to felt.json
@@ -228,10 +221,10 @@ export const FeltStorage = {
    * Encrypts and stores queued external URLs so an app restart can carry them
    * over. Encryption is owned here so felt.json can never hold the plaintext
    * addresses, matching how the locked-session token is stored. The version
-   * and creation time sit beside the ciphertext so a launch can tell whether
-   * the record is its own and still fresh without asking the keystore. If
-   * clearPendingURLs() runs while the keystore is answering, the result is
-   * dropped, so a signout cannot be undone by a write that started before it.
+   * sits beside the ciphertext so a launch can tell whether the record is its
+   * own without asking the keystore. If clearPendingURLs() runs while the
+   * keystore is answering, the result is dropped, so a signout cannot be
+   * undone by a write that started before it.
    *
    * @param {Array<object>} urls The pending URL payloads.
    * @returns {Promise<void>}
@@ -242,15 +235,13 @@ export const FeltStorage = {
       return;
     }
     const generation = this._pendingURLsGeneration;
-    const createdAt = Date.now();
-    const ciphertext = await lazy.OSKeyStore.encrypt(JSON.stringify(urls));
+    const encryptedURLs = await lazy.OSKeyStore.encrypt(JSON.stringify(urls));
     if (generation !== this._pendingURLsGeneration) {
       return;
     }
     this._feltStorage.data.pendingURLs = {
       version: PENDING_URLS_VERSION,
-      createdAt,
-      ciphertext,
+      ciphertext: encryptedURLs,
     };
     await this._feltStorage._save();
   },
@@ -275,33 +266,29 @@ export const FeltStorage = {
   /**
    * Reads the stored external URLs. A usable record is left in place until
    * the caller stores the restored queue again, so a restart that interrupts
-   * this launch before then still finds it. A record that is stale or cannot
-   * be read is removed, so it is not retried on every launch. A record with
-   * another version is left alone, since a different build sharing felt.json
-   * may have written it.
+   * this launch before then still finds it. A record that cannot be read is
+   * removed, so it is not retried on every launch. A record with another
+   * version is left alone, since a different build sharing felt.json may have
+   * written it.
    *
    * @returns {Promise<Array<object>>} The pending URL payloads, or an empty
    *   array when there is nothing usable stored.
    */
   async readPendingURLs() {
     const record = this._feltStorage.data?.pendingURLs;
-    if (record === undefined) {
+    if (record == null) {
+      await this.clearPendingURLs();
       return [];
     }
     if (
-      Number.isInteger(record?.version) &&
+      Number.isInteger(record.version) &&
       record.version !== PENDING_URLS_VERSION
     ) {
       return [];
     }
-
-    const age = Date.now() - record?.createdAt;
     if (
-      record?.version !== PENDING_URLS_VERSION ||
-      typeof record.ciphertext !== "string" ||
-      !Number.isFinite(record.createdAt) ||
-      age < -PENDING_URLS_MAX_CLOCK_SKEW_MS ||
-      age > PENDING_URLS_MAX_AGE_MS
+      record.version !== PENDING_URLS_VERSION ||
+      typeof record.ciphertext !== "string"
     ) {
       await this.clearPendingURLs();
       return [];

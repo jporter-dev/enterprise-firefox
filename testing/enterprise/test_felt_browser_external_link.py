@@ -34,9 +34,9 @@ class FeltStartsBrowserExternalLink(BaseBrowserExternalLink):
         self._driver.set_context("chrome")
         return self._driver.execute_async_script(
             """
-            const done = arguments[arguments.length - 1];
+            const callback = arguments[arguments.length - 1];
             const { gFeltPendingURLs } = ChromeUtils.importESModule('moz-src:///browser/components/FeltURLHandler.sys.mjs');
-            gFeltPendingURLs.init().then(() => done([...gFeltPendingURLs]));
+            gFeltPendingURLs.init().then(() => callback([...gFeltPendingURLs]));
             """
         )
 
